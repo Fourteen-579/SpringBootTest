@@ -1,0 +1,18 @@
+server:
+  port: 8981
+  servlet:
+    session:
+      timeout: 120m
+  tomcat:
+    uri-encoding: UTF-8
+    connection-timeout: 30s
+    max-connections: 8192
+    max-http-form-post-size: 10000
+
+#spring:
+#  elasticsearch:
+#    urls: "localhost:9200"
+#    username: "elastic"
+#    password: "123456"
+#    connection-timeout: 10s
+#    socket-timeout: 30s
