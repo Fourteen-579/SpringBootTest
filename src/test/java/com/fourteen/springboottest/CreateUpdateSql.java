@@ -21,124 +21,56 @@ import java.util.stream.Collectors;
  */
 public class CreateUpdateSql {
 
-
     public static final String REPLACE_UPDATE_SQL = "UPDATE `%s`.`%s` SET `%s` = REPLACE(%s, '%s', '%s') WHERE `%s` LIKE '%%%s%%';";
     public static final String UPDATE_SQL = "UPDATE `%s`.`%s` SET `%s` = '%s' WHERE `%s` = '%s';";
+    public static final String QYT_TABLE_FILE = "D:\\update-sql\\qyt.xlsx";
+    public static final String SC_TABLE_FILE = "D:\\update-sql\\sc.xlsx";
+    public static final String DATA_FILE = "D:\\update-sql\\oldNewInfo.xlsx";
+    public static final String SAVE_PATH = "D:\\update-sql\\";
 
     //企业通&数仓-分文件
     @Test
     public void createSql() {
-
-        String oldNewFileName = "D:\\oldNewInfo.xlsx";
         List<OldNewInfo> oldNewInfoList = new ArrayList<>();
-        EasyExcel.read(oldNewFileName, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
+        EasyExcel.read(DATA_FILE, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
 
-        createSql("10.195.13.116", "D:\\qyt-all.xlsx", oldNewInfoList);
-        createSql("10.195.26.241", "D:\\sc.xlsx", oldNewInfoList);
-    }
-
-    //企业通-replace
-    @Test
-    public void createSql2() {
-
-        String oldNewFileName = "D:\\oldNewInfo.xlsx";
-        List<OldNewInfo> oldNewInfoList = new ArrayList<>();
-        EasyExcel.read(oldNewFileName, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
-
-        List<TableInfo> tableInfoList = new ArrayList<>();
-        tableInfoList.add(new TableInfo("resource_library_info", "ent_backend", "investor_stk_code", 0));
-        tableInfoList.add(new TableInfo("resource_library", "ent_backend", "compare_security_codes", 0));
-        tableInfoList.add(new TableInfo("activity_guide_equity", "ent_backend", "stkCode", 0));
-
-        String formatSql = "UPDATE `%s`.`%s` SET `%s` = REPLACE(%s, '%s', '%s') WHERE `%s` LIKE '%%%s%%';";
-        tableInfoList.forEach(tableInfo -> {
-            List<String> sqlList = oldNewInfoList.stream().map(oldNewInfo -> String.format(formatSql,
-                    tableInfo.getTableSchema(),
-                    tableInfo.getTableName(),
-                    tableInfo.getField(),
-                    tableInfo.getField(),
-                    oldNewInfo.getOldValue(),
-                    oldNewInfo.getNewValue(),
-                    tableInfo.getField(),
-                    oldNewInfo.getOldValue())).collect(Collectors.toList());
-
-            FileUtil.writeLines(sqlList, "D://10.195.13.116//" + tableInfo.getTableName() + "-" + tableInfo.getField() + "2.txt", StandardCharsets.UTF_8);
-        });
-    }
-
-    //数仓-replace
-    @Test
-    public void createSql3() {
-
-        String oldNewFileName = "D:\\oldNewInfo.xlsx";
-        List<OldNewInfo> oldNewInfoList = new ArrayList<>();
-        EasyExcel.read(oldNewFileName, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
-
-        List<TableInfo> tableInfoList = new ArrayList<>();
-        tableInfoList.add(new TableInfo("ir_qa_question_record", "nrs-enterprise", "security_with_date", 0));
-
-        String formatSql = "UPDATE `%s`.`%s` SET `%s` = REPLACE(%s, '%s', '%s') WHERE `%s` LIKE '%%%s%%';";
-        tableInfoList.forEach(tableInfo -> {
-            List<String> sqlList = oldNewInfoList.stream().map(oldNewInfo -> String.format(formatSql,
-                    tableInfo.getTableSchema(),
-                    tableInfo.getTableName(),
-                    tableInfo.getField(),
-                    tableInfo.getField(),
-                    oldNewInfo.getOldValue(),
-                    oldNewInfo.getNewValue(),
-                    tableInfo.getField(),
-                    oldNewInfo.getOldValue())).collect(Collectors.toList());
-
-            FileUtil.writeLines(sqlList, "D://10.195.26.241//" + tableInfo.getTableName() + "-" + tableInfo.getField() + "2.txt", StandardCharsets.UTF_8);
-        });
+        createSql("企业通", QYT_TABLE_FILE, oldNewInfoList);
+        createSql("数仓", SC_TABLE_FILE, oldNewInfoList);
     }
 
     //企业通-同一文件
     @Test
     public void createSql4() {
-
-        String oldNewFileName = "D:\\oldNewInfo.xlsx";
         List<OldNewInfo> oldNewInfoList = new ArrayList<>();
-        EasyExcel.read(oldNewFileName, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
+        EasyExcel.read(DATA_FILE, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
 
         List<TableInfo> tableInfoList = new ArrayList<>();
-        EasyExcel.read("D:\\qyt-all.xlsx", TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
-        List<String> sqlList = createSql(tableInfoList, oldNewInfoList, false);
+        EasyExcel.read(QYT_TABLE_FILE, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
+        List<String> sqlList = createSql(tableInfoList, oldNewInfoList);
 
-        tableInfoList = new ArrayList<>();
-        tableInfoList.add(new TableInfo("resource_library_info", "ent_backend", "investor_stk_code", 0));
-        tableInfoList.add(new TableInfo("resource_library", "ent_backend", "compare_security_codes", 0));
-        tableInfoList.add(new TableInfo("activity_guide_equity", "ent_backend", "stkCode", 0));
-        sqlList.addAll(createSql(tableInfoList, oldNewInfoList, true));
-
-        FileUtil.writeLines(sqlList, "D://qyt-all.txt", StandardCharsets.UTF_8);
+        FileUtil.writeLines(sqlList, "D://update-sql//qyt-all.txt", StandardCharsets.UTF_8);
     }
 
     //数仓全部-同一文件
     @Test
     public void createSql5() {
-        String oldNewFileName = "D:\\oldNewInfo.xlsx";
         List<OldNewInfo> oldNewInfoList = new ArrayList<>();
-        EasyExcel.read(oldNewFileName, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
+        EasyExcel.read(DATA_FILE, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
 
         List<TableInfo> tableInfoList = new ArrayList<>();
-        EasyExcel.read("D:\\sc.xlsx", TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
-        List<String> sqlList = createSql(tableInfoList, oldNewInfoList, false);
+        EasyExcel.read(SC_TABLE_FILE, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
+        List<String> sqlList = createSql(tableInfoList, oldNewInfoList);
 
-        tableInfoList = new ArrayList<>();
-        tableInfoList.add(new TableInfo("ir_qa_question_record", "nrs-enterprise", "security_with_date", 0));
-        sqlList.addAll(createSql(tableInfoList, oldNewInfoList, true));
-
-        FileUtil.writeLines(sqlList, "D://sc-all.txt", StandardCharsets.UTF_8);
+        FileUtil.writeLines(sqlList, "D://update-sql//sc-all.txt", StandardCharsets.UTF_8);
     }
 
-    private List<String> createSql(List<TableInfo> tableInfoList, List<OldNewInfo> oldNewInfoList, boolean replace) {
+    private List<String> createSql(List<TableInfo> tableInfoList, List<OldNewInfo> oldNewInfoList) {
 
         List<String> result = new ArrayList<>();
         tableInfoList.forEach(tableInfo -> {
             List<String> sqlList = oldNewInfoList.stream().map(oldNewInfo -> {
                 String sql;
-                if (replace) {
+                if (tableInfo.replace == 1) {
                     sql = String.format(REPLACE_UPDATE_SQL,
                             tableInfo.getTableSchema(),
                             tableInfo.getTableName(),
@@ -175,35 +107,46 @@ public class CreateUpdateSql {
         return result;
     }
 
-    private void createSql(String ip, String fileName, List<OldNewInfo> oldNewInfoList) {
+    private void createSql(String filePath, String tableInfoPath, List<OldNewInfo> oldNewInfoList) {
         List<TableInfo> tableInfoList = new ArrayList<>();
-        EasyExcel.read(fileName, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
+        EasyExcel.read(tableInfoPath, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
 
-        String formatSql = "UPDATE `%s`.`%s` SET `%s` = '%s' WHERE `%s` = '%s';";
         tableInfoList.forEach(tableInfo -> {
             List<String> sqlList = oldNewInfoList.stream().map(oldNewInfo -> {
                 String sql;
-                if (tableInfo.addSuffix == 1) {
-                    sql = String.format(formatSql,
+                if (tableInfo.replace == 1) {
+                    sql = String.format(REPLACE_UPDATE_SQL,
                             tableInfo.getTableSchema(),
                             tableInfo.getTableName(),
                             tableInfo.getField(),
-                            oldNewInfo.getNewValue() + ".BJ",
                             tableInfo.getField(),
-                            oldNewInfo.getOldValue() + ".BJ");
-                } else {
-                    sql = String.format(formatSql,
-                            tableInfo.getTableSchema(),
-                            tableInfo.getTableName(),
-                            tableInfo.getField(),
+                            oldNewInfo.getOldValue(),
                             oldNewInfo.getNewValue(),
                             tableInfo.getField(),
                             oldNewInfo.getOldValue());
+                } else {
+                    if (tableInfo.addSuffix == 1) {
+                        sql = String.format(UPDATE_SQL,
+                                tableInfo.getTableSchema(),
+                                tableInfo.getTableName(),
+                                tableInfo.getField(),
+                                oldNewInfo.getNewValue() + ".BJ",
+                                tableInfo.getField(),
+                                oldNewInfo.getOldValue() + ".BJ");
+                    } else {
+                        sql = String.format(UPDATE_SQL,
+                                tableInfo.getTableSchema(),
+                                tableInfo.getTableName(),
+                                tableInfo.getField(),
+                                oldNewInfo.getNewValue(),
+                                tableInfo.getField(),
+                                oldNewInfo.getOldValue());
+                    }
                 }
                 return sql;
             }).collect(Collectors.toList());
 
-            FileUtil.writeLines(sqlList, "D://" + ip + "//" + tableInfo.getTableName() + "-" + tableInfo.getField() + ".txt", StandardCharsets.UTF_8);
+            FileUtil.writeLines(sqlList, SAVE_PATH + filePath + "\\" + tableInfo.getTableName() + "-" + tableInfo.getField() + ".txt", StandardCharsets.UTF_8);
         });
     }
 
@@ -231,6 +174,9 @@ public class CreateUpdateSql {
 
         @ExcelProperty(value = "是否添加后缀")
         Integer addSuffix;
+
+        @ExcelProperty(value = "是否使用替换")
+        Integer replace;
     }
 
 }
