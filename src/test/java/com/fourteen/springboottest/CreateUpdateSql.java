@@ -27,6 +27,7 @@ public class CreateUpdateSql {
     public static final String SC_TABLE_FILE = "D:\\update-sql\\sc.xlsx";
     public static final String DATA_FILE = "D:\\update-sql\\oldNewInfo.xlsx";
     public static final String SAVE_PATH = "D:\\update-sql\\";
+    public static final String SUFFIX = ".BJ";
 
     //企业通&数仓-分文件
     @Test
@@ -34,34 +35,26 @@ public class CreateUpdateSql {
         List<OldNewInfo> oldNewInfoList = new ArrayList<>();
         EasyExcel.read(DATA_FILE, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
 
-        createSql("企业通", QYT_TABLE_FILE, oldNewInfoList);
-        createSql("数仓", SC_TABLE_FILE, oldNewInfoList);
+        createSqlAndFile("企业通", QYT_TABLE_FILE, oldNewInfoList);
+        createSqlAndFile("数仓", SC_TABLE_FILE, oldNewInfoList);
     }
 
-    //企业通-同一文件
+    //企业通&数仓-同一文件
     @Test
-    public void createSql4() {
+    public void createSql2() {
         List<OldNewInfo> oldNewInfoList = new ArrayList<>();
         EasyExcel.read(DATA_FILE, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
 
-        List<TableInfo> tableInfoList = new ArrayList<>();
-        EasyExcel.read(QYT_TABLE_FILE, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
-        List<String> sqlList = createSql(tableInfoList, oldNewInfoList);
-
-        FileUtil.writeLines(sqlList, "D://update-sql//qyt-all.txt", StandardCharsets.UTF_8);
+        createSql4(oldNewInfoList, QYT_TABLE_FILE, "D://update-sql//qyt-all.txt");
+        createSql4(oldNewInfoList, SC_TABLE_FILE, "D://update-sql//sc-all.txt");
     }
 
-    //数仓全部-同一文件
-    @Test
-    public void createSql5() {
-        List<OldNewInfo> oldNewInfoList = new ArrayList<>();
-        EasyExcel.read(DATA_FILE, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
-
+    private void createSql4(List<OldNewInfo> oldNewInfoList, String tableInfoPath, String savePath) {
         List<TableInfo> tableInfoList = new ArrayList<>();
-        EasyExcel.read(SC_TABLE_FILE, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
+        EasyExcel.read(tableInfoPath, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
         List<String> sqlList = createSql(tableInfoList, oldNewInfoList);
 
-        FileUtil.writeLines(sqlList, "D://update-sql//sc-all.txt", StandardCharsets.UTF_8);
+        FileUtil.writeLines(sqlList, savePath, StandardCharsets.UTF_8);
     }
 
     private List<String> createSql(List<TableInfo> tableInfoList, List<OldNewInfo> oldNewInfoList) {
@@ -86,9 +79,9 @@ public class CreateUpdateSql {
                                 tableInfo.getTableSchema(),
                                 tableInfo.getTableName(),
                                 tableInfo.getField(),
-                                oldNewInfo.getNewValue() + ".BJ",
+                                oldNewInfo.getNewValue() + CreateUpdateSql.SUFFIX,
                                 tableInfo.getField(),
-                                oldNewInfo.getOldValue() + ".BJ");
+                                oldNewInfo.getOldValue() + CreateUpdateSql.SUFFIX);
                     } else {
                         sql = String.format(UPDATE_SQL,
                                 tableInfo.getTableSchema(),
@@ -107,7 +100,7 @@ public class CreateUpdateSql {
         return result;
     }
 
-    private void createSql(String filePath, String tableInfoPath, List<OldNewInfo> oldNewInfoList) {
+    private void createSqlAndFile(String filePath, String tableInfoPath, List<OldNewInfo> oldNewInfoList) {
         List<TableInfo> tableInfoList = new ArrayList<>();
         EasyExcel.read(tableInfoPath, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
 
@@ -130,9 +123,9 @@ public class CreateUpdateSql {
                                 tableInfo.getTableSchema(),
                                 tableInfo.getTableName(),
                                 tableInfo.getField(),
-                                oldNewInfo.getNewValue() + ".BJ",
+                                oldNewInfo.getNewValue() + CreateUpdateSql.SUFFIX,
                                 tableInfo.getField(),
-                                oldNewInfo.getOldValue() + ".BJ");
+                                oldNewInfo.getOldValue() + CreateUpdateSql.SUFFIX);
                     } else {
                         sql = String.format(UPDATE_SQL,
                                 tableInfo.getTableSchema(),
