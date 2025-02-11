@@ -28,6 +28,7 @@ public class CreateUpdateSql {
     public static final String DATA_FILE = "D:\\update-sql\\oldNewInfo.xlsx";
     public static final String SAVE_PATH = "D:\\update-sql\\";
     public static final String SUFFIX = ".BJ";
+    public static final String SEARCH_SQL = "SELECT * FROM `%s`.`%s` WHERE `%s` in (%s);";
 
     //企业通&数仓-分文件
     @Test
@@ -47,6 +48,36 @@ public class CreateUpdateSql {
 
         createSql4(oldNewInfoList, QYT_TABLE_FILE, "D://update-sql//qyt-all.txt");
         createSql4(oldNewInfoList, SC_TABLE_FILE, "D://update-sql//sc-all.txt");
+    }
+
+    //企业通&数仓-查询语句
+    @Test
+    public void searchSql() {
+        List<OldNewInfo> oldNewInfoList = new ArrayList<>();
+        EasyExcel.read(DATA_FILE, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
+
+        searchSql(oldNewInfoList, QYT_TABLE_FILE, "D://update-sql//qyt-search.txt");
+        searchSql(oldNewInfoList, SC_TABLE_FILE, "D://update-sql//sc-search.txt");
+    }
+
+    private void searchSql(List<OldNewInfo> oldNewInfoList, String tableInfoPath, String savePath) {
+        List<TableInfo> tableInfoList = new ArrayList<>();
+        EasyExcel.read(tableInfoPath, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
+
+        String whereCondition = oldNewInfoList.stream()
+                .map(temp -> "'" + temp.getOldValue() + "'").collect(Collectors.joining(","));
+
+        String whereCondition2 = oldNewInfoList.stream()
+                .map(temp -> "'" + temp.getOldValue() + SUFFIX + "'").collect(Collectors.joining(","));
+
+        List<String> sqlList = tableInfoList.stream()
+                .map(temp -> String.format(SEARCH_SQL,
+                        temp.getTableSchema(),
+                        temp.getTableName(),
+                        temp.getField(),
+                        temp.getAddSuffix() == 1 ? whereCondition2 : whereCondition)).collect(Collectors.toList());
+
+        FileUtil.writeLines(sqlList, savePath, StandardCharsets.UTF_8);
     }
 
     private void createSql4(List<OldNewInfo> oldNewInfoList, String tableInfoPath, String savePath) {
