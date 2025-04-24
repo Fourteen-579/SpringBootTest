@@ -27,7 +27,7 @@ public class CreateUpdateSql {
     public static final String SC_TABLE_FILE = "D:\\update-sql\\sc.xlsx";
     public static final String DATA_FILE = "D:\\update-sql\\oldNewInfo.xlsx";
     public static final String SAVE_PATH = "D:\\update-sql\\";
-    public static final String SUFFIX = ".SZ";
+    public static final String SUFFIX = ".BJ";
     public static final String SEARCH_SQL = "SELECT * FROM `%s`.`%s` WHERE `%s` in (%s);";
 
     //企业通&数仓-分文件
