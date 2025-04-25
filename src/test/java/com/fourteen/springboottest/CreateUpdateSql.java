@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -29,6 +30,7 @@ public class CreateUpdateSql {
     public static final String SAVE_PATH = "D:\\update-sql\\";
     public static final String SUFFIX = ".BJ";
     public static final String SEARCH_SQL = "SELECT * FROM `%s`.`%s` WHERE `%s` in (%s);";
+    public static final String SEARCH_SQL2 = "SELECT * FROM `%s`.`%s` WHERE `%s` like '%%%s%%';";
 
     //企业通&数仓-分文件
     @Test
@@ -55,27 +57,40 @@ public class CreateUpdateSql {
     public void searchSql() {
         List<OldNewInfo> oldNewInfoList = new ArrayList<>();
         EasyExcel.read(DATA_FILE, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
-
-        searchSql(oldNewInfoList, QYT_TABLE_FILE, "D://update-sql//qyt-search.txt");
-        searchSql(oldNewInfoList, SC_TABLE_FILE, "D://update-sql//sc-search.txt");
+        searchSql(oldNewInfoList, QYT_TABLE_FILE, "D://update-sql//qyt-search.txt", OldNewInfo::getOldValue);
+        searchSql(oldNewInfoList, SC_TABLE_FILE, "D://update-sql//sc-search.txt", OldNewInfo::getOldValue);
     }
 
-    private void searchSql(List<OldNewInfo> oldNewInfoList, String tableInfoPath, String savePath) {
+    private void searchSql(List<OldNewInfo> oldNewInfoList, String tableInfoPath, String savePath, Function<OldNewInfo, String> getValue) {
         List<TableInfo> tableInfoList = new ArrayList<>();
         EasyExcel.read(tableInfoPath, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
 
         String whereCondition = oldNewInfoList.stream()
-                .map(temp -> "'" + temp.getOldValue() + "'").collect(Collectors.joining(","));
+                .map(temp -> "'" + getValue.apply(temp) + "'").collect(Collectors.joining(","));
 
         String whereCondition2 = oldNewInfoList.stream()
-                .map(temp -> "'" + temp.getOldValue() + SUFFIX + "'").collect(Collectors.joining(","));
+                .map(temp -> "'" + getValue.apply(temp) + SUFFIX + "'").collect(Collectors.joining(","));
 
-        List<String> sqlList = tableInfoList.stream()
-                .map(temp -> String.format(SEARCH_SQL,
+        List<String> sqlList = new ArrayList<>();
+        tableInfoList.forEach(temp -> {
+            if (temp.getReplace() == 1) {
+                oldNewInfoList.forEach(temp2 -> {
+                    String sql = String.format(SEARCH_SQL2,
+                            temp.getTableSchema(),
+                            temp.getTableName(),
+                            temp.getField(),
+                            temp.getAddSuffix() == 1 ? getValue.apply(temp2) + SUFFIX : getValue.apply(temp2));
+                    sqlList.add(sql);
+                });
+            } else {
+                String sql = String.format(SEARCH_SQL,
                         temp.getTableSchema(),
                         temp.getTableName(),
                         temp.getField(),
-                        temp.getAddSuffix() == 1 ? whereCondition2 : whereCondition)).collect(Collectors.toList());
+                        temp.getAddSuffix() == 1 ? whereCondition2 : whereCondition);
+                sqlList.add(sql);
+            }
+        });
 
         FileUtil.writeLines(sqlList, savePath, StandardCharsets.UTF_8);
     }
