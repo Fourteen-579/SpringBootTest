@@ -31,6 +31,9 @@ public class CreateUpdateSql {
     public static final String SUFFIX = ".BJ";
     public static final String SEARCH_SQL = "SELECT * FROM `%s`.`%s` WHERE `%s` in (%s);";
     public static final String SEARCH_SQL2 = "SELECT * FROM `%s`.`%s` WHERE `%s` like '%%%s%%';";
+    public static final String UPDATE_SQL_2 = "UPDATE `webserver`.`stock_price_calc_result`\n" +
+            "SET `calc_res` = CAST(REPLACE(CAST(calc_res AS CHAR), '833819', '920819') AS JSON)\n" +
+            "WHERE CAST(calc_res AS CHAR) LIKE '%833819%';";
 
     //企业通&数仓-分文件
     @Test
@@ -57,8 +60,8 @@ public class CreateUpdateSql {
     public void searchSql() {
         List<OldNewInfo> oldNewInfoList = new ArrayList<>();
         EasyExcel.read(DATA_FILE, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
-        searchSql(oldNewInfoList, QYT_TABLE_FILE, "D://update-sql//qyt-search.txt", OldNewInfo::getOldValue);
-        searchSql(oldNewInfoList, SC_TABLE_FILE, "D://update-sql//sc-search.txt", OldNewInfo::getOldValue);
+        searchSql(oldNewInfoList, QYT_TABLE_FILE, "D://update-sql//qyt-search.txt", OldNewInfo::getNewValue);
+        searchSql(oldNewInfoList, SC_TABLE_FILE, "D://update-sql//sc-search.txt", OldNewInfo::getNewValue);
     }
 
     private void searchSql(List<OldNewInfo> oldNewInfoList, String tableInfoPath, String savePath, Function<OldNewInfo, String> getValue) {

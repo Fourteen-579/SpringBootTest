@@ -18,7 +18,7 @@ import java.util.Random;
  * @version 1.0
  * @date 2024/5/11 16:14
  */
-@SpringBootTest
+//@SpringBootTest
 public class GetInfoByWechatDocUrl {
 
     static String[] userAgent = {
@@ -100,7 +100,7 @@ public class GetInfoByWechatDocUrl {
 
     @Test
     public void test() {
-        String url = "https://mp.weixin.qq.com/s/BF4OfgE69Gxdt0vwD9vZGA";
+        String url = "https://mp.weixin.qq.com/s/nlEQ9PIM1LcWu2oPp89sdg";
 
         String xml = crawling02(url);
     }

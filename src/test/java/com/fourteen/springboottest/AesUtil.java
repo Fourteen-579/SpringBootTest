@@ -32,15 +32,16 @@ public class AesUtil {
 
     public static void main(String[] args) throws UnsupportedEncodingException {
         System.out.println(aesEncrypt("17301809831",KEY));
+//        aes();
     }
 
-    private void aes() throws UnsupportedEncodingException {
+    private static void aes() throws UnsupportedEncodingException {
         //des密钥，固定值
         String keys = "TnKfEmmstNA=";
         //加密数据，约定使用的密钥，解密客户端通过appid从通行证组获取
         String dataSecret = "8c0914be";
         //加密后的密文
-        String cryptStr="Tkk5TAyLVEAUTkFQCMBkUg";
+        String cryptStr="sXb4c1POUhBfsfeJP1Au3A";
         //通过反向解码得到真正的密文"GT84R7+Q1Xyn5ETm/8NHhw=="
         String realCryptStr = cryptStr.replace("-", "+").replace("_", "/") + "====".substring(cryptStr.length() % 4 == 0 ? 4 : cryptStr.length() % 4);
         //System.out.println(realCryptStr);
