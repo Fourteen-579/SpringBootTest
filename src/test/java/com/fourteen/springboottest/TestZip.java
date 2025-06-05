@@ -84,7 +84,7 @@ public class TestZip {
         return cipher.doFinal(encryptBytes);
     }
 
-    @Test
+//    @Test
     void testZip() throws IOException {
         File file = new File("C:\\Users\\Administrator\\Desktop\\test.zip");
         byte[] bytes = readZipFileToBytes(file);

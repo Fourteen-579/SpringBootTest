@@ -10,15 +10,12 @@ import org.jsoup.select.Elements;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import java.util.ArrayList;
-import java.util.Random;
-
 /**
  * @author Fourteen_ksz
  * @version 1.0
  * @date 2024/5/11 16:14
  */
-//@SpringBootTest
+@SpringBootTest
 public class GetInfoByWechatDocUrl {
 
     static String[] userAgent = {
