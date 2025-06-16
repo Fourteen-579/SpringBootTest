@@ -31,7 +31,7 @@ public class AesUtil {
     private static final String KEY2 = "VCU4$K&S@2PQDQ%^";
 
     public static void main(String[] args) throws UnsupportedEncodingException {
-        System.out.println(aesEncrypt("17301809831",KEY));
+        System.out.println(aesDecrypt("KwU7rthJHgy7y084HXXryA==",KEY));
 //        aes();
     }
 

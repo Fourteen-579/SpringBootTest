@@ -10,6 +10,10 @@ import org.jsoup.select.Elements;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * @author Fourteen_ksz
  * @version 1.0
@@ -50,7 +54,7 @@ public class GetInfoByWechatDocUrl {
 
     static BrowserVersion browser =
             new BrowserVersion.BrowserVersionBuilder(BrowserVersion.CHROME)
-                    .setUserAgent("Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; TencentTraveler 4.0)")
+                    .setUserAgent("Mozilla/6.0 (iPhone; CPU iPhone OS 8_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/8.0 Mobile/10A5376e Safari/8536.25")
                     .build();
     private static final WebClient webClient = new WebClient(browser);
 
@@ -59,8 +63,7 @@ public class GetInfoByWechatDocUrl {
         webClient.getOptions().setThrowExceptionOnFailingStatusCode(false);
         webClient.getOptions().setActiveXNative(false);
         webClient.getOptions().setCssEnabled(false);
-//        webClient.getOptions().setJavaScriptEnabled(true);
-        webClient.getOptions().setJavaScriptEnabled(false);
+        webClient.getOptions().setJavaScriptEnabled(true);
         webClient.setAjaxController(new NicelyResynchronizingAjaxController());
         HtmlPage page = null;
         try {
@@ -79,12 +82,12 @@ public class GetInfoByWechatDocUrl {
         // rich_media_title
         Elements rich_media_title = document.getElementsByClass("rich_media_title");
         System.out.println("=================title=====================");
-        //System.out.println(rich_media_title);
+        System.out.println(rich_media_title);
         rich_media_title.forEach(element -> System.out.println(element.getElementsByTag("h1").text()));
 
         Elements infoListEle = document.getElementsByClass("rich_media_content");
         System.out.println("==================content====================");
-        //System.out.println(infoListEle);
+        System.out.println(infoListEle);
         infoListEle.forEach(element -> System.out.println(element.getElementsByTag("p").text()));
 
         System.out.println("================获取封面图=====================");
@@ -95,11 +98,33 @@ public class GetInfoByWechatDocUrl {
         return pageXml;
     }
 
+    public static void parseUrl(String url) {
+        Document doc = null;
+        try {
+            doc = Jsoup.connect(url).get();
+
+            // 获取标题
+            String title = doc.select("h1.rich_media_title").text();
+            System.out.println("=================title=====================");
+            System.out.println(title);
+
+            // 获取封面图（可能出现在 meta 标签中）
+            String cover = doc.select("meta[property=og:image]").attr("content");
+            System.out.println("================获取封面图=====================");
+            System.out.println(cover);
+            Map<String, Object> result = new HashMap<>();
+            result.put("title", title);
+            result.put("cover", cover);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Test
     public void test() {
         String url = "https://mp.weixin.qq.com/s/nlEQ9PIM1LcWu2oPp89sdg";
 
-        String xml = crawling02(url);
+        crawling02(url);
     }
 
 }
