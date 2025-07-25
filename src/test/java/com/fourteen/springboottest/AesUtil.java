@@ -10,9 +10,11 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.DESKeySpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLOutput;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 /**
  * @Description: Aes加密
@@ -31,8 +33,28 @@ public class AesUtil {
     private static final String KEY2 = "VCU4$K&S@2PQDQ%^";
 
     public static void main(String[] args) throws UnsupportedEncodingException {
-        System.out.println(aesDecrypt("KwU7rthJHgy7y084HXXryA==",KEY));
-//        aes();
+        //解密手机号
+//        System.out.println(aesDecrypt("yE8rHl3zAmHji0rKXLR+Jw==", KEY));
+
+        //加密手机号
+//        System.out.println(aesEncrypt("13811112222", KEY));
+
+        //解密文件
+        String filePath = "C:\\Users\\Administrator\\Desktop\\三会电子签\\test.txt";
+        System.out.println(desFile(filePath));
+    }
+
+
+    private static String desFile(String filePath) {
+        try {
+            byte[] bytes = Files.readAllBytes(Paths.get(filePath));
+            String content = new String(bytes, StandardCharsets.UTF_8);
+
+            String s = aesDecrypt(content, KEY);
+            return cn.hutool.core.codec.Base64.decodeStr(s);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static void aes() throws UnsupportedEncodingException {
@@ -41,23 +63,20 @@ public class AesUtil {
         //加密数据，约定使用的密钥，解密客户端通过appid从通行证组获取
         String dataSecret = "8c0914be";
         //加密后的密文
-        String cryptStr="sXb4c1POUhBfsfeJP1Au3A";
+        String cryptStr = "sXb4c1POUhBfsfeJP1Au3A";
         //通过反向解码得到真正的密文"GT84R7+Q1Xyn5ETm/8NHhw=="
         String realCryptStr = cryptStr.replace("-", "+").replace("_", "/") + "====".substring(cryptStr.length() % 4 == 0 ? 4 : cryptStr.length() % 4);
         //System.out.println(realCryptStr);
-        String umobPhone= DESDecrypt(Base64.decodeBase64(realCryptStr),Base64.decodeBase64(keys),dataSecret.getBytes("UTF-8"));
-        System.out.println("密文："+cryptStr+" 数据秘钥："+dataSecret+" 解密后数据："+umobPhone);
+        String umobPhone = DESDecrypt(Base64.decodeBase64(realCryptStr), Base64.decodeBase64(keys), dataSecret.getBytes("UTF-8"));
+        System.out.println("密文：" + cryptStr + " 数据秘钥：" + dataSecret + " 解密后数据：" + umobPhone);
     }
 
     /**
      * 解密函数
      *
-     * @param data
-     *            解密数据
-     * @param key
-     *            密钥
-     * @param iv
-     *           偏移向量
+     * @param data 解密数据
+     * @param key  密钥
+     * @param iv   偏移向量
      * @return 返回解密后的数据
      */
     public static String DESDecrypt(byte[] data, byte[] key, byte[] iv) {
@@ -79,7 +98,7 @@ public class AesUtil {
 
             // 正式执行解密操作
             byte decryptedData[] = cipher.doFinal(data);
-            return  new String(decryptedData);
+            return new String(decryptedData);
         } catch (Exception e) {
             System.err.println("DES算法，解密出错。");
             e.printStackTrace();
