@@ -1,6 +1,6 @@
 package com.fourteen.springboottest.util;
 
-import com.alibaba.fastjson.JSON;
+import cn.hutool.core.collection.CollUtil;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -15,6 +15,7 @@ import java.util.Dictionary;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @Description: HTTP封装类
@@ -22,13 +23,30 @@ import java.util.Objects;
  * @Date: 2022/08/18 19:48
  */
 @Slf4j
-//@Component
+@Component
 public class HttpUtils {
 
+    public static final OkHttpClient langCallHttpClient = newLongCallHttpClient();
     private static final String JSON_TYPE = "application/json; charset=utf-8";
 
     @Resource
     private OkHttpClient client;
+
+    public static OkHttpClient newLongCallHttpClient() {
+        Dispatcher dispatcher = new Dispatcher();
+        dispatcher.setMaxRequests(1200);
+        dispatcher.setMaxRequestsPerHost(120);
+
+        OkHttpClient.Builder builder = new OkHttpClient.Builder()
+                .dispatcher(dispatcher)
+                .connectionPool(new ConnectionPool(5, 3, TimeUnit.MINUTES))
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(600, TimeUnit.SECONDS)
+                .pingInterval(5, TimeUnit.SECONDS);
+
+        return builder.build();
+    }
 
     public String post(String url, String jsonParam, Dictionary<String, String> headers) {
         String result = null;
@@ -48,13 +66,14 @@ public class HttpUtils {
             if (response != null && response.code() == 200 && response.body() != null) {
                 result = response.body().string();
             } else {
-                log.error("HttpUtils -> post error, url={}, param={}, header={}, response={}", url, jsonParam, JSON.toJSONString(headers), response == null ? "" : response.toString());
+                log.error("HttpUtils -> post error, url={}, param={}, header={}, response={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString());
             }
         } catch (Exception e) {
-            log.error("HttpUtils -> post error, url={}, json={}, header={}, error={}", url, jsonParam, JSON.toJSONString(headers), e.getMessage(), e);
+            log.error("HttpUtils -> post error, url={}, json={}, header={}, error={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
         }
         return result;
     }
+
 
     public String postForm(String url, Map<String, String> bodyParam, Map<String, String> headers) {
         String result = null;
@@ -75,13 +94,14 @@ public class HttpUtils {
             if (response != null && response.code() == 200 && response.body() != null) {
                 result = response.body().string();
             } else {
-                log.error("HttpUtils -> post error, url={}, param={}, header={}, response={}", url, JSON.toJSONString(bodyParam), JSON.toJSONString(headers), response == null ? "" : response.toString());
+                log.error("HttpUtils -> post error, url={}, param={}, header={}, response={}", url, ObjectMappers.writeAsJsonStrThrow(bodyParam), ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString());
             }
         } catch (Exception e) {
-            log.error("HttpUtils -> post error, url={}, from={}, header={}, error={}", url, JSON.toJSONString(bodyParam), JSON.toJSONString(headers), e.getMessage(), e);
+            log.error("HttpUtils -> post error, url={}, from={}, header={}, error={}", url, ObjectMappers.writeAsJsonStrThrow(bodyParam), ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
         }
         return result;
     }
+
 
     public String post(String url, String jsonParam, Map<String, String> headers) {
         String result = null;
@@ -97,13 +117,37 @@ public class HttpUtils {
             if (response != null && response.code() == 200 && response.body() != null) {
                 result = response.body().string();
             } else {
-                log.error("HttpUtils -> post error, url={}, param={}, header={}, response={}", url, jsonParam, JSON.toJSONString(headers), response == null ? "" : response.toString());
+                log.error("HttpUtils -> post error, url={}, param={}, header={}, response={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString());
             }
         } catch (Exception e) {
-            log.error("HttpUtils -> post error, url={}, json={}, header={}, error={}", url, jsonParam, JSON.toJSONString(headers), e.getMessage(), e);
+            log.error("HttpUtils -> post error, url={}, json={}, header={}, error={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
         }
         return result;
     }
+
+
+    public String postForLongCall(String url, String jsonParam, Map<String, String> headers) {
+        String result = null;
+        //请求参数
+        RequestBody requestBody = FormBody.create(MediaType.parse(JSON_TYPE), jsonParam);
+        Request.Builder requestBuilder = new Request.Builder().url(url).post(requestBody);
+        //添加请求头
+        if (headers != null) {
+            headers.forEach(requestBuilder::addHeader);
+        }
+        Request request = requestBuilder.build();
+        try (Response response = langCallHttpClient.newCall(request).execute()) {
+            if (response != null && response.code() == 200 && response.body() != null) {
+                result = response.body().string();
+            } else {
+                log.error("HttpUtils -> post error, url={}, param={}, header={}, response={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString());
+            }
+        } catch (Exception e) {
+            log.error("HttpUtils -> post error, url={}, json={}, header={}, error={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
+        }
+        return result;
+    }
+
 
     public String postOnlyHeader(String url, Map<String, String> headers) {
         String result = null;
@@ -119,13 +163,14 @@ public class HttpUtils {
             if (response != null && response.code() == 200 && response.body() != null) {
                 result = response.body().string();
             } else {
-                log.error("HttpUtils -> postOnlyHeader error, url={}, param={}, header={}, response={}", url, "", JSON.toJSONString(headers), response == null ? "" : response.toString());
+                log.error("HttpUtils -> postOnlyHeader error, url={}, param={}, header={}, response={}", url, "", ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString());
             }
         } catch (Exception e) {
-            log.error("HttpUtils -> postOnlyHeader error, url={}, json={}, header={}, error={}", url, "", JSON.toJSONString(headers), e.getMessage(), e);
+            log.error("HttpUtils -> postOnlyHeader error, url={}, json={}, header={}, error={}", url, "", ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
         }
         return result;
     }
+
 
     public String post(String url, String jsonParam) {
         String result = null;
@@ -145,6 +190,48 @@ public class HttpUtils {
         return result;
     }
 
+    /**
+     * post 请求 参数拼接在url后
+     *
+     * @param url
+     * @param paramMap
+     * @param headers
+     * @return
+     */
+
+    public String post(String url, Map<String, String> paramMap, Map<String, String> headers) {
+        String result = "";
+        StringBuilder urlString = new StringBuilder(url);
+        if (!CollectionUtils.isEmpty(paramMap)) {
+            urlString.append("?");
+            for (Map.Entry<String, String> entry : paramMap.entrySet()) {
+                try {
+                    urlString.append(URLEncoder.encode(null == entry.getKey() ? "" : entry.getKey(), "utf-8")).append("=").append(URLEncoder.encode(null == entry.getValue() ? "" : entry.getValue(), "utf-8")).append("&");
+                } catch (UnsupportedEncodingException e) {
+                    log.error("Parse url failed", e);
+                }
+            }
+            urlString.deleteCharAt(urlString.lastIndexOf("&"));
+        }
+        Request.Builder requestBuilder = new Request.Builder().url(urlString.toString());
+        if (headers != null) {
+            headers.forEach(requestBuilder::addHeader);
+        }
+        //post 请求 必须有body
+        RequestBody requestBody = FormBody.create(MediaType.parse(JSON_TYPE), "{}");
+        try (Response response = client.newCall(requestBuilder.post(requestBody).build()).execute()) {
+            if (response != null && response.code() == 200 && response.body() != null) {
+                result = response.body().string();
+            } else {
+                log.error("HttpUtils -> post error, url={}, param={}, header={}, response={}", url, null, ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString());
+            }
+        } catch (Exception e) {
+            log.error("HttpUtils -> post error, url={}, json={}, header={}, error={}", url, null, ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
+        }
+        return result;
+    }
+
+
     public String get(String url) {
         String result = "";
         try (Response response = client.newCall(new Request.Builder().url(url).build()).execute()) {
@@ -158,6 +245,7 @@ public class HttpUtils {
         }
         return result;
     }
+
 
     public String get(String url, Dictionary<String, String> headers) {
         String result = "";
@@ -174,13 +262,14 @@ public class HttpUtils {
             if (response != null && response.code() == 200 && response.body() != null) {
                 result = response.body().string();
             } else {
-                log.error("HttpUtils -> get error, url={}, headers={}, response={}", url, JSON.toJSONString(headers), response == null ? "" : response.toString());
+                log.error("HttpUtils -> get error, url={}, headers={}, response={}", url, ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString());
             }
         } catch (Exception e) {
-            log.error("HttpUtils -> get error, url={}, headers={}, error={}", url, JSON.toJSONString(headers), e.getMessage(), e);
+            log.error("HttpUtils -> get error, url={}, headers={}, error={}", url, ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
         }
         return result;
     }
+
 
     public String get(String url, Map<String, String> paramMap, Map<String, String> headers) {
         String result = "";
@@ -189,9 +278,9 @@ public class HttpUtils {
             urlString.append("?");
             for (Map.Entry<String, String> entry : paramMap.entrySet()) {
                 try {
-                    urlString.append(URLEncoder.encode(null == entry.getKey()?"": entry.getKey(),"utf-8")).append("=").append(URLEncoder.encode(null == entry.getValue()?"": entry.getValue(),"utf-8")).append("&");
+                    urlString.append(URLEncoder.encode(null == entry.getKey() ? "" : entry.getKey(), "utf-8")).append("=").append(URLEncoder.encode(null == entry.getValue() ? "" : entry.getValue(), "utf-8")).append("&");
                 } catch (UnsupportedEncodingException e) {
-                    log.error("Parse url failed",e);
+                    log.error("Parse url failed", e);
                 }
             }
             urlString.deleteCharAt(urlString.lastIndexOf("&"));
@@ -204,10 +293,10 @@ public class HttpUtils {
             if (response != null && response.code() == 200 && response.body() != null) {
                 result = response.body().string();
             } else {
-                log.error("HttpUtils -> get error, url={}, header={}, response={}", urlString, JSON.toJSONString(headers), response == null ? "" : response.toString());
+                log.error("HttpUtils -> get error, url={}, header={}, response={}", urlString, ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString());
             }
         } catch (Exception e) {
-            log.error("HttpUtils -> get error, url={}, header={}, error={}", urlString, JSON.toJSONString(headers), e.getMessage(), e);
+            log.error("HttpUtils -> get error, url={}, header={}, error={}", urlString, ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
         }
         return result;
     }
@@ -234,13 +323,14 @@ public class HttpUtils {
                 log.info("remoteAPI HttpUtils getBytes request:{}, response length:{}, use time {} ms", urlString, contentLength, System.currentTimeMillis() - start);
                 return ImmutablePair.of(response.header("attachFilename"), bytes);
             } else {
-                log.error("HttpUtils -> getBytes error, url={}, headers={}, response={}", urlString, JSON.toJSONString(headers), response == null ? "" : response.toString());
+                log.error("HttpUtils -> getBytes error, url={}, headers={}, response={}", urlString, ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString());
             }
         } catch (Exception e) {
-            log.error("HttpUtils -> getBytes error, url={}, headers={}, error={}", urlString, JSON.toJSONString(headers), e.getMessage(), e);
+            log.error("HttpUtils -> getBytes error, url={}, headers={}, error={}", urlString, ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
         }
         return null;
     }
+
 
     public String postByteArray(String url, byte[] data) {
         String result = "";
@@ -258,6 +348,7 @@ public class HttpUtils {
         }
         return result;
     }
+
 
     public byte[] getBytes(String url, Map<String, String> param) {
         long time = System.currentTimeMillis();
@@ -283,6 +374,158 @@ public class HttpUtils {
             log.error("HttpUtils -> get error, url={}, error={}", url, e.getMessage(), e);
         }
         return new byte[0];
+    }
+
+
+    public String postForm(String url, Map<String, String> params) {
+        long time = System.currentTimeMillis();
+        if (CollUtil.isEmpty(params)) {
+            return "";
+        }
+        FormBody.Builder builder = new FormBody.Builder();
+        params.keySet().forEach(it -> builder.add(it, params.get(it)));
+        FormBody formBody = builder.build();
+
+        Request req = new Request.Builder().url(url).post(formBody).build();
+        try (Response response = client.newCall(req).execute()) {
+            if (response.isSuccessful() && response.body() != null) {
+                String res = response.body().string();
+                int length = res.length();
+                log.info("remoteAPI HttpUtils getBytes request:{}, response length:{}, use time {} ms", builder, length, System.currentTimeMillis() - time);
+                return res;
+            } else {
+                log.error("HttpUtils -> getBytes error, url={}, response={}", builder, response);
+            }
+        } catch (Exception e) {
+            log.error("HttpUtils -> get error, url={}, error={}", url, e.getMessage(), e);
+        }
+        return "";
+    }
+
+
+    public String postMultipartBody(String url, byte[] bytes, String fileName, Map<String, String> headers) {
+        long time = System.currentTimeMillis();
+        if (bytes == null) {
+            return "";
+        }
+        try {
+            MultipartBody.Builder builder = new MultipartBody.Builder();
+            MultipartBody multipartBody = builder.setType(MultipartBody.FORM)
+                    .addFormDataPart("file",
+                            fileName,
+                            RequestBody.create(MediaType.parse("application/octet-stream"), bytes)).build();
+            Request.Builder reqBuilder = new Request.Builder();
+            if (CollUtil.isNotEmpty(headers)) {
+                headers.forEach(reqBuilder::addHeader);
+            }
+            Request req = reqBuilder.url(url).post(multipartBody).build();
+            try (Response response = client.newCall(req).execute()) {
+                if (response.isSuccessful() && response.body() != null) {
+                    String res = response.body().string();
+                    int length = res.length();
+                    log.info("remoteAPI HttpUtils getBytes request:{}, response length:{}, use time {} ms", builder, length, System.currentTimeMillis() - time);
+                    return res;
+                } else {
+                    log.error("HttpUtils -> getBytes error, url={}, response={}", builder, response);
+                }
+            } catch (Exception e) {
+                log.error("HttpUtils -> get error, url={}, error={}", url, e.getMessage(), e);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return "";
+    }
+
+
+    public String postMultipartBody(String url, Map<String, String> formData, byte[] bytes, String fileName, Map<String, String> headers) {
+        long time = System.currentTimeMillis();
+        if (bytes == null) {
+            return "";
+        }
+        try {
+            MultipartBody.Builder builder = new MultipartBody.Builder();
+            builder.setType(MultipartBody.FORM);
+            builder.addFormDataPart("file",
+                    fileName,
+                    RequestBody.create(MediaType.parse("application/octet-stream"), bytes));
+            if (CollUtil.isNotEmpty(formData)) {
+                formData.forEach(builder::addFormDataPart);
+            }
+            MultipartBody multipartBody = builder.build();
+            Request.Builder reqBuilder = new Request.Builder();
+            if (CollUtil.isNotEmpty(headers)) {
+                headers.forEach(reqBuilder::addHeader);
+            }
+            Request req = reqBuilder.url(url).post(multipartBody).build();
+            try (Response response = client.newCall(req).execute()) {
+                if (response.isSuccessful() && response.body() != null) {
+                    String res = response.body().string();
+                    int length = res.length();
+                    log.info("remoteAPI HttpUtils getBytes request:{}, response length:{}, use time {} ms", builder, length, System.currentTimeMillis() - time);
+                    return res;
+                } else {
+                    log.error("HttpUtils -> getBytes error, url={}, response={}", builder, response);
+                }
+            } catch (Exception e) {
+                log.error("HttpUtils -> get error, url={}, error={}", url, e.getMessage(), e);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return "";
+    }
+
+    public byte[] postFormGetByte(String url, Map<String, String> params, Map<String, String> headers) {
+        long time = System.currentTimeMillis();
+        if (CollUtil.isEmpty(params)) {
+            return null;
+        }
+        FormBody.Builder builder = new FormBody.Builder();
+        params.keySet().forEach(it -> builder.add(it, params.get(it)));
+        FormBody formBody = builder.build();
+
+        Request.Builder post = new Request.Builder().url(url).post(formBody);
+        if (headers != null) {
+            headers.forEach(post::addHeader);
+        }
+        Request request = post.build();
+        try (Response response = client.newCall(request).execute()) {
+            if (response.isSuccessful() && response.body() != null) {
+                byte[] res = response.body().bytes();
+                int length = res.length;
+                log.info("remoteAPI HttpUtils postFormGetByte request:{}, response length:{}, use time {} ms", builder, length, System.currentTimeMillis() - time);
+                return res;
+            } else {
+                log.error("HttpUtils -> postFormGetByte error, url={}, response={}", builder, response);
+            }
+        } catch (Exception e) {
+            log.error("HttpUtils -> get error, url={}, error={}", url, e.getMessage(), e);
+        }
+        return null;
+    }
+
+
+    public byte[] postBytes(String url, String jsonParam, Map<String, String> headers) {
+        byte[] result = null;
+        //请求参数
+        RequestBody requestBody = FormBody.create(MediaType.parse(JSON_TYPE), jsonParam);
+        Request.Builder requestBuilder = new Request.Builder().url(url).post(requestBody);
+        //添加请求头
+        if (headers != null) {
+            headers.forEach(requestBuilder::addHeader);
+        }
+        Request request = requestBuilder.build();
+        try (Response response = client.newCall(request).execute()) {
+            if (response.code() == 200 && response.body() != null) {
+                result = response.body().bytes();
+            } else {
+                log.error("HttpUtils -> post error, url={}, param={}, header={}, response={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), response);
+            }
+        } catch (Exception e) {
+            log.error("HttpUtils -> post error, url={}, json={}, header={}, error={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
+        }
+        return result;
     }
 }
 
