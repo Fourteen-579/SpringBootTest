@@ -1,10 +1,7 @@
 package com.fourteen.springboottest.util;
 
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -13,7 +10,8 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.DESKeySpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.*;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -39,17 +37,15 @@ public class AesUtil {
 
     public static void main(String[] args) throws IOException {
         //解密手机号
-//        System.out.println(aesDecrypt("a7PzMB1beVVl8v0qCDKlaA==", KEY));
+//        System.out.println(aesDecrypt("mokf2vMzcX+nlsUuCPjKEg==", KEY));
 
         //加密手机号
-//        System.out.println(aesEncrypt("13811112222", KEY));
+        System.out.println(aesEncrypt("17611581813", KEY));
 
         //解密文件
-        String filePath = "C:\\Users\\Administrator\\Desktop\\三会电子签\\test.txt";
-        System.out.println(desFile(filePath));
+//        String filePath = "C:\\Users\\Administrator\\Desktop\\三会电子签\\test.txt";
+//        System.out.println(desFile(filePath));
     }
-
-
 
     public static byte[] aesDecrypt256(byte[] encryptStr) {
         byte[] decryptedStr = new byte[0];
