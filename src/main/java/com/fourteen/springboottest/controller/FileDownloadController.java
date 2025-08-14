@@ -96,9 +96,9 @@ public class FileDownloadController {
         Map<String, String> paramMap = new HashMap<>();
         paramMap.put("fid", fileId);
         Map<String, String> headerMap = new HashMap<>();
-        headerMap.put("ossToken", TEST_TOKEN);
+        headerMap.put("ossToken", PROD_TOKEN);
 
-        String downloadFileUrl = TEST_URL + "/oss-back/qyt-biz-test/shareholder-meeting/download";
+        String downloadFileUrl = PROD_URL + "/oss-back/qyt-biz-test/shareholder-meeting/download";
 
         byte[] bytes = httpUtils.postFormGetByte(downloadFileUrl, paramMap, headerMap);
         if (ObjectUtil.isEmpty(bytes)) {
