@@ -8,3 +8,14 @@ server:
     connection-timeout: 30s
     max-connections: 8192
     max-http-form-post-size: 10000
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://10.205.204.67:3306/webserver?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true&useSSL=false&rewriteBatchedStatements=true
+    username: root
+    password: N8XmZ3OiMh
+    hikari:
+      maximum-pool-size: 60
+      minimum-idle: 10
+      max-lifetime: 840000

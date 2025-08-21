@@ -1,6 +1,7 @@
 package com.fourteen.springboottest;
 
 import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.alibaba.excel.read.listener.PageReadListener;
@@ -28,12 +29,8 @@ public class CreateUpdateSql {
     public static final String SC_TABLE_FILE = "D:\\update-sql\\sc.xlsx";
     public static final String DATA_FILE = "D:\\update-sql\\oldNewInfo.xlsx";
     public static final String SAVE_PATH = "D:\\update-sql\\";
-    public static final String SUFFIX = ".BJ";
     public static final String SEARCH_SQL = "SELECT * FROM `%s`.`%s` WHERE `%s` in (%s);";
     public static final String SEARCH_SQL2 = "SELECT * FROM `%s`.`%s` WHERE `%s` like '%%%s%%';";
-    public static final String UPDATE_SQL_2 = "UPDATE `webserver`.`stock_price_calc_result`\n" +
-            "SET `calc_res` = CAST(REPLACE(CAST(calc_res AS CHAR), '833819', '920819') AS JSON)\n" +
-            "WHERE CAST(calc_res AS CHAR) LIKE '%833819%';";
 
     //企业通&数仓-分文件
     @Test
@@ -60,11 +57,11 @@ public class CreateUpdateSql {
     public void searchSql() {
         List<OldNewInfo> oldNewInfoList = new ArrayList<>();
         EasyExcel.read(DATA_FILE, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
-        searchSql(oldNewInfoList, QYT_TABLE_FILE, "D://update-sql//qyt-search.txt", OldNewInfo::getNewValue);
-        searchSql(oldNewInfoList, SC_TABLE_FILE, "D://update-sql//sc-search.txt", OldNewInfo::getNewValue);
+        searchSql(oldNewInfoList, QYT_TABLE_FILE, "D://update-sql//qyt-search.txt", OldNewInfo::getNewValue, OldNewInfo::getNewValueSuffix);
+        searchSql(oldNewInfoList, SC_TABLE_FILE, "D://update-sql//sc-search.txt", OldNewInfo::getNewValue, OldNewInfo::getNewValueSuffix);
     }
 
-    private void searchSql(List<OldNewInfo> oldNewInfoList, String tableInfoPath, String savePath, Function<OldNewInfo, String> getValue) {
+    private void searchSql(List<OldNewInfo> oldNewInfoList, String tableInfoPath, String savePath, Function<OldNewInfo, String> getValue, Function<OldNewInfo, String> getValueSuffix) {
         List<TableInfo> tableInfoList = new ArrayList<>();
         EasyExcel.read(tableInfoPath, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
 
@@ -72,7 +69,7 @@ public class CreateUpdateSql {
                 .map(temp -> "'" + getValue.apply(temp) + "'").collect(Collectors.joining(","));
 
         String whereCondition2 = oldNewInfoList.stream()
-                .map(temp -> "'" + getValue.apply(temp) + SUFFIX + "'").collect(Collectors.joining(","));
+                .map(temp -> "'" + getValue.apply(temp) + "." + getValueSuffix.apply(temp) + "'").collect(Collectors.joining(","));
 
         List<String> sqlList = new ArrayList<>();
         tableInfoList.forEach(temp -> {
@@ -82,7 +79,7 @@ public class CreateUpdateSql {
                             temp.getTableSchema(),
                             temp.getTableName(),
                             temp.getField(),
-                            temp.getAddSuffix() == 1 ? getValue.apply(temp2) + SUFFIX : getValue.apply(temp2));
+                            temp.getAddSuffix() == 1 ? getValue.apply(temp2) + "." + getValueSuffix.apply(temp2) : getValue.apply(temp2));
                     sqlList.add(sql);
                 });
             } else {
@@ -98,9 +95,18 @@ public class CreateUpdateSql {
         FileUtil.writeLines(sqlList, savePath, StandardCharsets.UTF_8);
     }
 
+    /**
+     * 同一文件创造
+     *
+     * @param oldNewInfoList 旧新值列表
+     * @param tableInfoPath  表信息路径
+     * @param savePath       保存路径
+     */
     private void createSql4(List<OldNewInfo> oldNewInfoList, String tableInfoPath, String savePath) {
         List<TableInfo> tableInfoList = new ArrayList<>();
         EasyExcel.read(tableInfoPath, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
+        tableInfoList = tableInfoList.stream().filter(temp -> StrUtil.isNotBlank(temp.getField())).collect(Collectors.toList());
+
         List<String> sqlList = createSql(tableInfoList, oldNewInfoList);
 
         FileUtil.writeLines(sqlList, savePath, StandardCharsets.UTF_8);
@@ -128,9 +134,9 @@ public class CreateUpdateSql {
                                 tableInfo.getTableSchema(),
                                 tableInfo.getTableName(),
                                 tableInfo.getField(),
-                                oldNewInfo.getNewValue() + CreateUpdateSql.SUFFIX,
+                                oldNewInfo.getNewValue() + "." + oldNewInfo.getNewValueSuffix(),
                                 tableInfo.getField(),
-                                oldNewInfo.getOldValue() + CreateUpdateSql.SUFFIX);
+                                oldNewInfo.getOldValue() + "." + oldNewInfo.getOldValueSuffix());
                     } else {
                         sql = String.format(UPDATE_SQL,
                                 tableInfo.getTableSchema(),
@@ -149,9 +155,17 @@ public class CreateUpdateSql {
         return result;
     }
 
+    /**
+     * 分文件创造
+     *
+     * @param filePath       文件路径
+     * @param tableInfoPath  表信息路径
+     * @param oldNewInfoList 旧新值列表
+     */
     private void createSqlAndFile(String filePath, String tableInfoPath, List<OldNewInfo> oldNewInfoList) {
         List<TableInfo> tableInfoList = new ArrayList<>();
         EasyExcel.read(tableInfoPath, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
+        tableInfoList = tableInfoList.stream().filter(temp -> StrUtil.isNotBlank(temp.getField())).collect(Collectors.toList());
 
         tableInfoList.forEach(tableInfo -> {
             List<String> sqlList = oldNewInfoList.stream().map(oldNewInfo -> {
@@ -172,9 +186,9 @@ public class CreateUpdateSql {
                                 tableInfo.getTableSchema(),
                                 tableInfo.getTableName(),
                                 tableInfo.getField(),
-                                oldNewInfo.getNewValue() + CreateUpdateSql.SUFFIX,
+                                oldNewInfo.getNewValue() + "." + oldNewInfo.getNewValueSuffix(),
                                 tableInfo.getField(),
-                                oldNewInfo.getOldValue() + CreateUpdateSql.SUFFIX);
+                                oldNewInfo.getOldValue() + "." + oldNewInfo.getOldValueSuffix());
                     } else {
                         sql = String.format(UPDATE_SQL,
                                 tableInfo.getTableSchema(),
@@ -197,8 +211,14 @@ public class CreateUpdateSql {
         @ExcelProperty(value = "旧值")
         String oldValue;
 
+        @ExcelProperty(value = "旧值后缀")
+        String oldValueSuffix;
+
         @ExcelProperty(value = "新值")
         String newValue;
+
+        @ExcelProperty(value = "新值后缀")
+        String newValueSuffix;
     }
 
     @Data
