@@ -37,10 +37,10 @@ public class AesUtil {
 
     public static void main(String[] args) throws IOException {
         //解密手机号
-//        System.out.println(aesDecrypt("mokf2vMzcX+nlsUuCPjKEg==", KEY));
+//        System.out.println(aesDecrypt("VjVzp8kx88NRWojKYLD4iQ==", KEY));
 
         //加密手机号
-        System.out.println(aesEncrypt("17611581813", KEY));
+        System.out.println(aesEncrypt("MobileLoginReq(phone=13132029095, prefix=86, area=中国大陆, code=193632, type=1, uid=null, matterId=null)", KEY));
 
         //解密文件
 //        String filePath = "C:\\Users\\Administrator\\Desktop\\三会电子签\\test.txt";
