@@ -18,9 +18,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
-import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * @author Fourteen_ksz
@@ -46,13 +48,40 @@ public class FileDownloadController {
 
         // 设置响应头
         response.setContentType("application/octet-stream");
-        response.setHeader("Content-Disposition", "attachment; filename=" + URLEncoder.encode(fileId+".pdf", "UTF-8"));
+        response.setHeader("Content-Disposition", "attachment; filename=" + URLEncoder.encode(fileId + ".pdf", "UTF-8"));
         response.setContentLength(fileBytes.length);
 
         // 写入响应输出流
         try (ServletOutputStream outputStream = response.getOutputStream()) {
             outputStream.write(fileBytes);
             outputStream.flush();
+        }
+    }
+
+    @PostMapping("/downloadFilesZip")
+    public void downloadFilesZip(@RequestParam("fileIds") String fileIds,
+                                 HttpServletResponse response) throws IOException {
+        // 设置响应头
+        response.setContentType("application/zip");
+        response.setHeader("Content-Disposition", "attachment; filename=" + URLEncoder.encode("file.zip", "UTF-8"));
+
+        List<String> ids = StrUtil.split(fileIds, StrUtil.COMMA);
+
+        try (ZipOutputStream zipOut = new ZipOutputStream(response.getOutputStream())) {
+            for (String fileId : ids) {
+                byte[] fileBytes = threeMeetingFileDownload(fileId);
+                if (fileBytes == null || fileBytes.length == 0) {
+                    continue; // 跳过无效文件
+                }
+
+                // 每个文件在压缩包中的名称
+                ZipEntry entry = new ZipEntry(fileId + ".pdf");
+                zipOut.putNextEntry(entry);
+                zipOut.write(fileBytes);
+                zipOut.closeEntry();
+            }
+            zipOut.finish();
+            zipOut.flush();
         }
     }
 

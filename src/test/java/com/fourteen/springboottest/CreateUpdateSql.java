@@ -25,7 +25,7 @@ public class CreateUpdateSql {
 
     public static final String REPLACE_UPDATE_SQL = "UPDATE `%s`.`%s` SET `%s` = REPLACE(%s, '%s', '%s') WHERE `%s` LIKE '%%%s%%';";
     public static final String UPDATE_SQL = "UPDATE `%s`.`%s` SET `%s` = '%s' WHERE `%s` = '%s';";
-    public static final String QYT_TABLE_FILE = "D:\\update-sql\\qyt.xlsx";
+    public static final String QYT_TABLE_FILE = "D:\\update-sql\\qyt-2.xlsx";
     public static final String SC_TABLE_FILE = "D:\\update-sql\\sc.xlsx";
     public static final String DATA_FILE = "D:\\update-sql\\oldNewInfo.xlsx";
     public static final String SAVE_PATH = "D:\\update-sql\\";
@@ -57,13 +57,14 @@ public class CreateUpdateSql {
     public void searchSql() {
         List<OldNewInfo> oldNewInfoList = new ArrayList<>();
         EasyExcel.read(DATA_FILE, OldNewInfo.class, new PageReadListener<OldNewInfo>(oldNewInfoList::addAll)).sheet(0).doRead();
-        searchSql(oldNewInfoList, QYT_TABLE_FILE, "D://update-sql//qyt-search.txt", OldNewInfo::getNewValue, OldNewInfo::getNewValueSuffix);
-        searchSql(oldNewInfoList, SC_TABLE_FILE, "D://update-sql//sc-search.txt", OldNewInfo::getNewValue, OldNewInfo::getNewValueSuffix);
+        searchSql(oldNewInfoList, QYT_TABLE_FILE, "D://update-sql//北交所//数据验证//旧代码//qyt-search-第二天.txt", OldNewInfo::getOldValue, OldNewInfo::getOldValueSuffix);
+//        searchSql(oldNewInfoList, SC_TABLE_FILE, "D://update-sql//sc-search.txt", OldNewInfo::getOldValue, OldNewInfo::getOldValueSuffix);
     }
 
     private void searchSql(List<OldNewInfo> oldNewInfoList, String tableInfoPath, String savePath, Function<OldNewInfo, String> getValue, Function<OldNewInfo, String> getValueSuffix) {
         List<TableInfo> tableInfoList = new ArrayList<>();
         EasyExcel.read(tableInfoPath, TableInfo.class, new PageReadListener<TableInfo>(tableInfoList::addAll)).sheet(0).doRead();
+        tableInfoList = tableInfoList.stream().filter(temp -> StrUtil.isNotBlank(temp.getField())).collect(Collectors.toList());
 
         String whereCondition = oldNewInfoList.stream()
                 .map(temp -> "'" + getValue.apply(temp) + "'").collect(Collectors.joining(","));

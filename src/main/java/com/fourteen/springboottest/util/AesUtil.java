@@ -29,6 +29,7 @@ public class AesUtil {
     private static final String ALGORITHMSTR = "AES/ECB/PKCS5Padding";
 
     private static final String KEY = "08cfbf6f49d676bf"; // 密钥
+    private static final String XG_KEY = "QYT_XINGONG_AES_KEY_hdiudhwdqhic"; // 偏移向量
 
     private static final String KEY2 = "VCU4$K&S@2PQDQ%^";
     private static final String ALGORITHMSTR_CBC = "AES/CBC/PKCS5Padding";
@@ -37,10 +38,12 @@ public class AesUtil {
 
     public static void main(String[] args) throws IOException {
         //解密手机号
-//        System.out.println(aesDecrypt("VjVzp8kx88NRWojKYLD4iQ==", KEY));
+//        System.out.println(aesEncrypt("VjVzp8kx88NRWojKYLD4iQ==", KEY));
+        System.out.println(aesEncrypt("7011356581326634", XG_KEY));
+        System.out.println(aesEncrypt("6873097591325414", XG_KEY));
 
         //加密手机号
-        System.out.println(aesEncrypt("MobileLoginReq(phone=13132029095, prefix=86, area=中国大陆, code=193632, type=1, uid=null, matterId=null)", KEY));
+//        System.out.println(aesEncrypt("MobileLoginReq(phone=13132029095, prefix=86, area=中国大陆, code=193632, type=1, uid=null, matterId=null)", KEY));
 
         //解密文件
 //        String filePath = "C:\\Users\\Administrator\\Desktop\\三会电子签\\test.txt";
