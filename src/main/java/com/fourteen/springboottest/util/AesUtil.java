@@ -38,9 +38,9 @@ public class AesUtil {
 
     public static void main(String[] args) throws IOException {
         //解密手机号
-//        System.out.println(aesEncrypt("VjVzp8kx88NRWojKYLD4iQ==", KEY));
-        System.out.println(aesEncrypt("7011356581326634", XG_KEY));
-        System.out.println(aesEncrypt("6873097591325414", XG_KEY));
+        System.out.println(aesDecrypt("5z4q9+AXyaohPtg7IMZNDg==", KEY));
+//        System.out.println(aesEncrypt("kUYpOtaaNdQRC2Xnf9s0Ug==", KEY));
+//        System.out.println(aesEncrypt("6873097591325414", XG_KEY));
 
         //加密手机号
 //        System.out.println(aesEncrypt("MobileLoginReq(phone=13132029095, prefix=86, area=中国大陆, code=193632, type=1, uid=null, matterId=null)", KEY));
