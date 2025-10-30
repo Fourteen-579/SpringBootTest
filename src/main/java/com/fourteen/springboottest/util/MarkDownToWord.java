@@ -13,6 +13,7 @@ import org.docx4j.jaxb.Context;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
+import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.wml.*;
 
 import java.io.ByteArrayInputStream;
@@ -23,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -223,12 +225,7 @@ public class MarkDownToWord {
     }
 
     /**
-     * 将封面文件与正文文件合并，并在最后追加文字。
-     *
-     * @param coverBytes 封面 Word 文件内容
-     * @param bodyBytes  正文 Word 文件内容
-     * @param footerText 末尾追加的文字
-     * @return 合并后的 Word 文件字节数组
+     * 合并封面 + 正文 + 尾页文字 (适配 docx4j 3.3.6)
      */
     public static byte[] mergeWordWithCoverAndFooter(byte[] coverBytes, byte[] bodyBytes, String footerText) {
         try {
@@ -244,27 +241,36 @@ public class MarkDownToWord {
                 bodyPackage = WordprocessingMLPackage.load(in);
             }
 
-            // 3. 获取主文档内容
-            MainDocumentPart mainPart = coverPackage.getMainDocumentPart();
+            MainDocumentPart coverMainPart = coverPackage.getMainDocumentPart();
+            MainDocumentPart bodyMainPart = bodyPackage.getMainDocumentPart();
 
-            // 4. 在封面后分页
-            mainPart.addObject(createPageBreak());
+            // 3. 拷贝正文样式到封面文档
+            StyleDefinitionsPart bodyStyles = bodyMainPart.getStyleDefinitionsPart();
+            StyleDefinitionsPart coverStyles = coverMainPart.getStyleDefinitionsPart();
+            if (bodyStyles != null && coverStyles != null) {
+                coverStyles.getContents().getStyle().addAll(bodyStyles.getContents().getStyle());
+            }
 
-            // 5. 合并正文内容
-            mainPart.getContent().addAll(bodyPackage.getMainDocumentPart().getContent());
+            // 4. 封面后分页
+            coverMainPart.getContent().add(createPageBreak());
 
-            // 6. 再分页 + 添加结尾文字
-            mainPart.addObject(createPageBreak());
-            mainPart.addParagraphOfText(footerText);
+            // 5. 合并正文段落内容
+            List<Object> bodyContent = bodyMainPart.getContent();
+            coverMainPart.getContent().addAll(bodyContent);
 
-            // 7. 输出为 byte[]
+            // 6. 尾页文字
+            coverMainPart.getContent().add(createPageBreak());
+            coverMainPart.addParagraphOfText(footerText);
+
+            // 7. 输出 byte[]
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             coverPackage.save(outputStream);
             return outputStream.toByteArray();
+
         } catch (Exception e) {
-            log.error("mergeWordWithCoverAndFooter-合并失败，失败原因：", e);
+            e.printStackTrace();
+            return null;
         }
-        return null;
     }
 
     /**
