@@ -8,6 +8,7 @@ import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.data.MutableDataSet;
 import lombok.extern.slf4j.Slf4j;
+import org.docx4j.XmlUtils;
 import org.docx4j.convert.in.xhtml.XHTMLImporterImpl;
 import org.docx4j.jaxb.Context;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
@@ -16,6 +17,7 @@ import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.wml.*;
 
+import javax.xml.bind.JAXBElement;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -65,7 +67,8 @@ public class MarkDownToWord {
         byte[] bytes = mergeWordWithCoverAndFooter(cover, text, END_TEXT);
 
         //整体样式处理
-        bytes = applyStyles(bytes);
+        bytes = applyTextStyles(bytes);
+        bytes = setTableStyle(bytes);
 
         if (ObjectUtil.isNotEmpty(bytes)) {
             String outputPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\output.docx";
@@ -222,7 +225,114 @@ public class MarkDownToWord {
         return p;
     }
 
-    public static byte[] applyStyles(byte[] wordBytes) {
+    public static byte[] setTableStyle(byte[] bytes) {
+        try (InputStream in = new ByteArrayInputStream(bytes)) {
+            WordprocessingMLPackage wordMLPackage = WordprocessingMLPackage.load(in);
+            MainDocumentPart mainPart = wordMLPackage.getMainDocumentPart();
+
+            List<Object> tables = mainPart.getJAXBNodesViaXPath("//w:tbl", true);
+
+            // 遍历每个表格
+            for (Object tblObj : tables) {
+                Tbl tbl = (Tbl) ((JAXBElement<?>) tblObj).getValue();
+                TblPr tblPr = tbl.getTblPr();
+                if (tblPr == null) {
+                    tblPr = new TblPr();  // 如果表格没有属性，则创建一个新的
+                    tbl.setTblPr(tblPr);
+                }
+
+                // 设置表格边框样式（每个单元格之间有单线边框）
+                TblBorders borders = new TblBorders();
+                CTBorder border = new CTBorder();
+                border.setVal(STBorder.SINGLE);  // 单线边框
+                border.setSz(BigInteger.valueOf(8));  // 设置边框粗细
+                border.setSpace(BigInteger.valueOf(0));  // 设置边框间距
+                border.setColor("000000");  // 设置边框颜色
+                borders.setTop(border);
+                borders.setBottom(border);
+                borders.setLeft(border);
+                borders.setRight(border);
+                tblPr.setTblBorders(borders);  // 将边框设置到表格属性中
+
+                // 设置表格宽度和居中对齐
+                TblWidth width = new TblWidth();
+                width.setType("pct");
+                width.setW(BigInteger.valueOf(5000)); // 50% 宽度
+                tblPr.setTblW(width);
+
+                Jc jc = new Jc();
+                jc.setVal(JcEnumeration.CENTER);  // 设置表格居中
+                tblPr.setJc(jc);
+
+                // 获取表格内容：List<Object> rowObjects
+                List<Object> rowObjects = tbl.getContent();
+                for (int i = 0; i < rowObjects.size(); i++) {
+                    Object rowObj = XmlUtils.unwrap(rowObjects.get(i));  // 解包行对象
+                    if (!(rowObj instanceof Tr)) {
+                        continue;  // 如果不是行，跳过
+                    }
+                    Tr row = (Tr) rowObj;
+
+                    // 获取行内的单元格对象：List<Object> cellObjects
+                    List<Object> cellObjects = row.getContent();
+                    for (int j = 0; j < cellObjects.size(); j++) {
+                        Object cellObj = XmlUtils.unwrap(cellObjects.get(j));  // 解包单元格对象
+                        if (!(cellObj instanceof Tc)) {
+                            continue;  // 如果不是单元格，跳过
+                        }
+                        Tc cell = (Tc) cellObj;
+
+                        //表格内容垂直居中
+                        TcPr tcPr = cell.getTcPr();
+                        if (tcPr == null) {
+                            tcPr = factory.createTcPr();
+                            cell.setTcPr(tcPr);
+                        }
+                        CTVerticalJc tcPrValign = factory.createCTVerticalJc();
+                        tcPrValign.setVal(STVerticalJc.CENTER);
+                        // 默认设置单元格内容【垂直居中】
+                        tcPr.setVAlign(tcPrValign);
+
+                        // 首行设置单元格底色
+                        if (i == 0) {
+                            CTShd shd = factory.createCTShd();
+                            shd.setFill("95b3d7");  // 设置底色为 #95b3d7
+                            tcPr.setShd(shd);
+                        }
+
+                        // 首行首列单元格加粗
+                        if (i == 0 || j == 0) {
+                            for (Object pObj : cell.getContent()) {
+                                P p = (P) XmlUtils.unwrap(pObj);  // 解包段落对象
+                                if (p == null) continue;
+
+                                for (Object rObj : p.getContent()) {
+                                    R r = (R) XmlUtils.unwrap(rObj);  // 解包文本对象
+                                    if (r == null) continue;
+
+                                    RPr rpr = r.getRPr();
+                                    if (rpr == null) {
+                                        rpr = factory.createRPr();
+                                        r.setRPr(rpr);
+                                    }
+                                    rpr.setB(factory.createBooleanDefaultTrue());  // 设置加粗
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                wordMLPackage.save(out);
+                return out.toByteArray();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static byte[] applyTextStyles(byte[] wordBytes) {
         try (ByteArrayInputStream in = new ByteArrayInputStream(wordBytes)) {
             WordprocessingMLPackage wordPackage = WordprocessingMLPackage.load(in);
             List<Object> paragraphs = wordPackage.getMainDocumentPart().getContent();
@@ -287,48 +397,6 @@ public class MarkDownToWord {
                         }
                     }
                 }
-
-                // 表格处理
-                /*if (obj instanceof Tbl) {
-                    Tbl tbl = (Tbl) obj;
-                    List<Tr> rows = tbl.getContent();
-                    for (int i = 0; i < rows.size(); i++) {
-                        Tr row = rows.get(i);
-                        List<Tc> cells = row.getContent();
-                        for (int j = 0; j < cells.size(); j++) {
-                            Tc cell = cells.get(j);
-                            // 首行底色
-                            if (i == 0) {
-                                TcPr tcPr = cell.getTcPr();
-                                if (tcPr == null) {
-                                    tcPr = factory.createTcPr();
-                                    cell.setTcPr(tcPr);
-                                }
-                                CTShd shd = factory.createCTShd();
-                                shd.setFill("95b3d7");
-                                tcPr.setShd(shd);
-                            }
-                            // 首行首列加粗
-                            if (i == 0 || j == 0) {
-                                for (Object pObj : cell.getContent()) {
-                                    if (pObj instanceof P) {
-                                        P p = (P) pObj;
-                                        for (Object runObj : p.getContent()) {
-                                            if (runObj instanceof R) {
-                                                RPr rpr = ((R) runObj).getRPr();
-                                                if (rpr == null) {
-                                                    rpr = factory.createRPr();
-                                                    ((R) runObj).setRPr(rpr);
-                                                }
-                                                rpr.setB(factory.createBooleanDefaultTrue());
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }*/
             }
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
