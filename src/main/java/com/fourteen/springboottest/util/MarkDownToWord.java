@@ -229,116 +229,105 @@ public class MarkDownToWord {
         try (InputStream in = new ByteArrayInputStream(bytes)) {
             WordprocessingMLPackage wordMLPackage = WordprocessingMLPackage.load(in);
             MainDocumentPart mainPart = wordMLPackage.getMainDocumentPart();
+            ObjectFactory factory = Context.getWmlObjectFactory();
 
             List<Object> tables = mainPart.getJAXBNodesViaXPath("//w:tbl", true);
-
-            // 遍历每个表格
             for (Object tblObj : tables) {
                 Tbl tbl = (Tbl) ((JAXBElement<?>) tblObj).getValue();
                 TblPr tblPr = tbl.getTblPr();
                 if (tblPr == null) {
-                    tblPr = new TblPr();  // 如果表格没有属性，则创建一个新的
+                    tblPr = factory.createTblPr();
                     tbl.setTblPr(tblPr);
                 }
 
-                // 创建单线边框样式
-                CTBorder border = new CTBorder();
-                border.setVal(STBorder.SINGLE);         // 单线边框
-                border.setSz(BigInteger.valueOf(8));    // 边框宽度 (单位: 1/8 pt)，8 ≈ 1pt
-                border.setSpace(BigInteger.ZERO);       // 无间距
-                border.setColor("000000");              // 黑色边框
+                //单元格间距
+                TblWidth tblWidth = new TblWidth();
+                tblWidth.setType("dxa");
+                tblWidth.setW(BigInteger.valueOf(0));
+                tblPr.setTblCellSpacing(tblWidth);
 
-                // 将边框应用到表格各个方向
-                TblBorders borders = new TblBorders();
-                borders.setTop(border);
-                borders.setBottom(border);
-                borders.setLeft(border);
-                borders.setRight(border);
-                borders.setInsideH(border); // 表格内部的水平线
-                borders.setInsideV(border); // 表格内部的垂直线
+                // 设置表格边框（外+内）
+                CTBorder border = createBorder(factory);
+                TblBorders tblBorders = factory.createTblBorders();
+                tblBorders.setTop(border);
+                tblBorders.setBottom(border);
+                tblBorders.setLeft(border);
+                tblBorders.setRight(border);
+                tblBorders.setInsideH(border);
+                tblBorders.setInsideV(border);
+                tblPr.setTblBorders(tblBorders);
 
-                // 应用到表格
-                tblPr.setTblBorders(borders);
-
-                // 设置表格宽度和居中对齐
-                TblWidth width = new TblWidth();
+                //表格宽度 & 居中
+                TblWidth width = factory.createTblWidth();
                 width.setType("pct");
-                width.setW(BigInteger.valueOf(5000)); // 50% 宽度
+                width.setW(BigInteger.valueOf(5000)); // 50%
                 tblPr.setTblW(width);
 
-                Jc jc = new Jc();
-                jc.setVal(JcEnumeration.CENTER);  // 设置表格居中
+                Jc jc = factory.createJc();
+                jc.setVal(JcEnumeration.CENTER);
                 tblPr.setJc(jc);
 
-                // 获取表格内容：List<Object> rowObjects
+                // 遍历行
                 List<Object> rowObjects = tbl.getContent();
                 for (int i = 0; i < rowObjects.size(); i++) {
-                    Object rowObj = XmlUtils.unwrap(rowObjects.get(i));  // 解包行对象
-                    if (!(rowObj instanceof Tr)) {
-                        continue;  // 如果不是行，跳过
-                    }
-                    Tr row = (Tr) rowObj;
+                    Tr row = (Tr) XmlUtils.unwrap(rowObjects.get(i));
+                    if (row == null) continue;
 
-                    // 获取行内的单元格对象：List<Object> cellObjects
+                    // 遍历单元格
                     List<Object> cellObjects = row.getContent();
                     for (int j = 0; j < cellObjects.size(); j++) {
-                        Object cellObj = XmlUtils.unwrap(cellObjects.get(j));  // 解包单元格对象
-                        if (!(cellObj instanceof Tc)) {
-                            continue;  // 如果不是单元格，跳过
-                        }
-                        Tc cell = (Tc) cellObj;
+                        Tc cell = (Tc) XmlUtils.unwrap(cellObjects.get(j));
+                        if (cell == null) continue;
 
-                        //表格内容垂直居中
                         TcPr tcPr = cell.getTcPr();
                         if (tcPr == null) {
                             tcPr = factory.createTcPr();
                             cell.setTcPr(tcPr);
                         }
-                        CTVerticalJc tcPrValign = factory.createCTVerticalJc();
-                        tcPrValign.setVal(STVerticalJc.CENTER);
-                        tcPr.setVAlign(tcPrValign);
 
-                        // 表格内容水平居中（针对单元格里的每个段落）
+                        // 表格内容水平居中 & 设置间距
                         for (Object pObj : cell.getContent()) {
-                            Object unwrappedP = XmlUtils.unwrap(pObj);
-                            if (unwrappedP instanceof P) {
-                                P p = (P) unwrappedP;
+                            P p = (P) XmlUtils.unwrap(pObj);
+                            if (p == null) continue;
 
-                                // 获取或创建段落属性
-                                PPr pPr = p.getPPr();
-                                if (pPr == null) {
-                                    pPr = factory.createPPr();
-                                    p.setPPr(pPr);
-                                }
-
-                                // 设置段落居中
-                                pPr.setJc(jc);
+                            PPr pPr = p.getPPr();
+                            if (pPr == null) {
+                                pPr = factory.createPPr();
+                                p.setPPr(pPr);
                             }
+                            pPr.setJc(jc);
+
+                            // 段落格式
+                            PPrBase.Spacing spacing = factory.createPPrBaseSpacing();
+                            spacing.setLine(BigInteger.valueOf(240)); // 单倍行距
+                            spacing.setBefore(BigInteger.valueOf(120)); // 段前6磅
+                            spacing.setAfter(BigInteger.valueOf(120));  // 段后6磅
+                            pPr.setSpacing(spacing);
                         }
 
-                        // 首行设置单元格底色
+                        // 首行底色
                         if (i == 0) {
                             CTShd shd = factory.createCTShd();
-                            shd.setFill("95b3d7");  // 设置底色为 #95b3d7
+                            shd.setFill("95b3d7");
                             tcPr.setShd(shd);
                         }
 
-                        // 首行首列单元格加粗
+                        // 首行首列加粗
                         if (i == 0 || j == 0) {
                             for (Object pObj : cell.getContent()) {
-                                P p = (P) XmlUtils.unwrap(pObj);  // 解包段落对象
+                                P p = (P) XmlUtils.unwrap(pObj);
                                 if (p == null) continue;
 
                                 for (Object rObj : p.getContent()) {
-                                    R r = (R) XmlUtils.unwrap(rObj);  // 解包文本对象
+                                    R r = (R) XmlUtils.unwrap(rObj);
                                     if (r == null) continue;
 
-                                    RPr rpr = r.getRPr();
-                                    if (rpr == null) {
-                                        rpr = factory.createRPr();
-                                        r.setRPr(rpr);
+                                    RPr rPr = r.getRPr();
+                                    if (rPr == null) {
+                                        rPr = factory.createRPr();
+                                        r.setRPr(rPr);
                                     }
-                                    rpr.setB(factory.createBooleanDefaultTrue());  // 设置加粗
+                                    rPr.setB(factory.createBooleanDefaultTrue());
                                 }
                             }
                         }
@@ -353,6 +342,18 @@ public class MarkDownToWord {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * 统一创建边框的方法
+     */
+    private static CTBorder createBorder(ObjectFactory factory) {
+        CTBorder border = factory.createCTBorder();
+        border.setVal(STBorder.SINGLE);
+        border.setSz(BigInteger.valueOf(1));  // 边框宽度 (4 = 0.5pt)
+        border.setSpace(BigInteger.ZERO);
+        border.setColor("#808080");
+        return border;
     }
 
     public static byte[] applyTextStyles(byte[] wordBytes) {
