@@ -25,10 +25,7 @@ import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author Fourteen_ksz
@@ -231,22 +228,22 @@ public class MarkDownToWord {
             MainDocumentPart mainPart = wordMLPackage.getMainDocumentPart();
             ObjectFactory factory = Context.getWmlObjectFactory();
 
+            // 获取所有表格
             List<Object> tables = mainPart.getJAXBNodesViaXPath("//w:tbl", true);
             for (Object tblObj : tables) {
                 Tbl tbl = (Tbl) ((JAXBElement<?>) tblObj).getValue();
-                TblPr tblPr = tbl.getTblPr();
-                if (tblPr == null) {
-                    tblPr = factory.createTblPr();
-                    tbl.setTblPr(tblPr);
-                }
 
-                //单元格间距
-                TblWidth tblWidth = new TblWidth();
-                tblWidth.setType("dxa");
-                tblWidth.setW(BigInteger.valueOf(0));
-                tblPr.setTblCellSpacing(tblWidth);
+                // 表格属性
+                TblPr tblPr = Optional.ofNullable(tbl.getTblPr()).orElseGet(factory::createTblPr);
+                tbl.setTblPr(tblPr);
 
-                // 设置表格边框（外+内）
+                // 单元格间距（0表示无缝隙）
+                TblWidth cellSpacing = factory.createTblWidth();
+                cellSpacing.setType("dxa");
+                cellSpacing.setW(BigInteger.ZERO);
+                tblPr.setTblCellSpacing(cellSpacing);
+
+                // 边框
                 CTBorder border = createBorder(factory);
                 TblBorders tblBorders = factory.createTblBorders();
                 tblBorders.setTop(border);
@@ -257,52 +254,34 @@ public class MarkDownToWord {
                 tblBorders.setInsideV(border);
                 tblPr.setTblBorders(tblBorders);
 
-                //表格宽度 & 居中
+                // 表格宽度与居中
                 TblWidth width = factory.createTblWidth();
                 width.setType("pct");
                 width.setW(BigInteger.valueOf(5000)); // 50%
                 tblPr.setTblW(width);
-
-                Jc jc = factory.createJc();
-                jc.setVal(JcEnumeration.CENTER);
-                tblPr.setJc(jc);
+                tblPr.setJc(createJc(factory, JcEnumeration.CENTER));
 
                 // 遍历行
-                List<Object> rowObjects = tbl.getContent();
-                for (int i = 0; i < rowObjects.size(); i++) {
-                    Tr row = (Tr) XmlUtils.unwrap(rowObjects.get(i));
+                for (int i = 0; i < tbl.getContent().size(); i++) {
+                    Tr row = (Tr) XmlUtils.unwrap(tbl.getContent().get(i));
                     if (row == null) continue;
 
-                    // 遍历单元格
-                    List<Object> cellObjects = row.getContent();
-                    for (int j = 0; j < cellObjects.size(); j++) {
-                        Tc cell = (Tc) XmlUtils.unwrap(cellObjects.get(j));
+                    for (int j = 0; j < row.getContent().size(); j++) {
+                        Tc cell = (Tc) XmlUtils.unwrap(row.getContent().get(j));
                         if (cell == null) continue;
 
-                        TcPr tcPr = cell.getTcPr();
-                        if (tcPr == null) {
-                            tcPr = factory.createTcPr();
-                            cell.setTcPr(tcPr);
-                        }
+                        TcPr tcPr = Optional.ofNullable(cell.getTcPr()).orElseGet(factory::createTcPr);
+                        cell.setTcPr(tcPr);
 
-                        // 表格内容水平居中 & 设置间距
+                        // 段落居中与间距
                         for (Object pObj : cell.getContent()) {
                             P p = (P) XmlUtils.unwrap(pObj);
                             if (p == null) continue;
 
-                            PPr pPr = p.getPPr();
-                            if (pPr == null) {
-                                pPr = factory.createPPr();
-                                p.setPPr(pPr);
-                            }
-                            pPr.setJc(jc);
-
-                            // 段落格式
-                            PPrBase.Spacing spacing = factory.createPPrBaseSpacing();
-                            spacing.setLine(BigInteger.valueOf(240)); // 单倍行距
-                            spacing.setBefore(BigInteger.valueOf(120)); // 段前6磅
-                            spacing.setAfter(BigInteger.valueOf(120));  // 段后6磅
-                            pPr.setSpacing(spacing);
+                            PPr pPr = Optional.ofNullable(p.getPPr()).orElseGet(factory::createPPr);
+                            p.setPPr(pPr);
+                            pPr.setJc(createJc(factory, JcEnumeration.CENTER));
+                            pPr.setSpacing(createSpacing(factory, 240, 120, 120));
                         }
 
                         // 首行底色
@@ -314,22 +293,7 @@ public class MarkDownToWord {
 
                         // 首行首列加粗
                         if (i == 0 || j == 0) {
-                            for (Object pObj : cell.getContent()) {
-                                P p = (P) XmlUtils.unwrap(pObj);
-                                if (p == null) continue;
-
-                                for (Object rObj : p.getContent()) {
-                                    R r = (R) XmlUtils.unwrap(rObj);
-                                    if (r == null) continue;
-
-                                    RPr rPr = r.getRPr();
-                                    if (rPr == null) {
-                                        rPr = factory.createRPr();
-                                        r.setRPr(rPr);
-                                    }
-                                    rPr.setB(factory.createBooleanDefaultTrue());
-                                }
-                            }
+                            boldCellText(factory, cell);
                         }
                     }
                 }
@@ -345,91 +309,128 @@ public class MarkDownToWord {
     }
 
     /**
-     * 统一创建边框的方法
+     * 创建统一边框
      */
     private static CTBorder createBorder(ObjectFactory factory) {
         CTBorder border = factory.createCTBorder();
         border.setVal(STBorder.SINGLE);
-        border.setSz(BigInteger.valueOf(1));  // 边框宽度 (4 = 0.5pt)
+        border.setSz(BigInteger.valueOf(1));  // 1/8 pt 单位，1 ≈ 0.125pt
         border.setSpace(BigInteger.ZERO);
         border.setColor("#808080");
         return border;
     }
 
+    /**
+     * 创建居中方式
+     */
+    private static Jc createJc(ObjectFactory factory, JcEnumeration val) {
+        Jc jc = factory.createJc();
+        jc.setVal(val);
+        return jc;
+    }
+
+    /**
+     * 创建段落间距
+     */
+    private static PPrBase.Spacing createSpacing(ObjectFactory factory, int line, int before, int after) {
+        PPrBase.Spacing spacing = factory.createPPrBaseSpacing();
+        spacing.setLine(BigInteger.valueOf(line));
+        spacing.setBefore(BigInteger.valueOf(before));
+        spacing.setAfter(BigInteger.valueOf(after));
+        return spacing;
+    }
+
+    /**
+     * 设置单元格内文字加粗
+     */
+    private static void boldCellText(ObjectFactory factory, Tc cell) {
+        for (Object pObj : cell.getContent()) {
+            P p = (P) XmlUtils.unwrap(pObj);
+            if (p == null) continue;
+
+            for (Object rObj : p.getContent()) {
+                R r = (R) XmlUtils.unwrap(rObj);
+                if (r == null) continue;
+
+                RPr rPr = Optional.ofNullable(r.getRPr()).orElseGet(factory::createRPr);
+                r.setRPr(rPr);
+                rPr.setB(factory.createBooleanDefaultTrue());
+            }
+        }
+    }
+
     public static byte[] applyTextStyles(byte[] wordBytes) {
+        ObjectFactory factory = Context.getWmlObjectFactory();
         try (ByteArrayInputStream in = new ByteArrayInputStream(wordBytes)) {
             WordprocessingMLPackage wordPackage = WordprocessingMLPackage.load(in);
-            List<Object> paragraphs = wordPackage.getMainDocumentPart().getContent();
+            List<Object> contents = wordPackage.getMainDocumentPart().getContent();
 
-            for (Object obj : paragraphs) {
-                if (obj instanceof P) {
-                    P p = (P) obj;
-                    PPr pPr = p.getPPr();
-                    if (pPr == null) {
-                        pPr = factory.createPPr();
-                        p.setPPr(pPr);
-                    }
+            for (Object obj : contents) {
+                if (!(obj instanceof P)) continue;
 
-                    // 字体和字号
-                    List<Object> runs = p.getContent();
-                    for (Object runObj : runs) {
-                        if (runObj instanceof R) {
-                            R run = (R) runObj;
-                            RPr rpr = run.getRPr();
-                            if (rpr == null) {
-                                rpr = factory.createRPr();
-                                run.setRPr(rpr);
-                            }
-                            RFonts rFonts = factory.createRFonts();
-                            rFonts.setAscii("Times New Roman");  // 英文
-                            rFonts.setHAnsi("Times New Roman");  // 英文
-                            rFonts.setEastAsia("SimSun");        // 中文
-                            rpr.setRFonts(rFonts);
+                P p = (P) obj;
+                PPr pPr = Optional.ofNullable(p.getPPr()).orElseGet(factory::createPPr);
+                p.setPPr(pPr);
 
-                            HpsMeasure sz = factory.createHpsMeasure();
-                            sz.setVal(BigInteger.valueOf(22)); // 11pt
-                            rpr.setSz(sz);
-                        }
-                    }
+                List<Object> runs = p.getContent();
+                for (Object runObj : runs) {
+                    if (!(runObj instanceof R)) continue;
 
-                    // 段落格式
-                    PPrBase.Spacing spacing = factory.createPPrBaseSpacing();
-                    spacing.setLine(BigInteger.valueOf(240)); // 单倍行距
-                    spacing.setBefore(BigInteger.valueOf(120)); // 段前6磅
-                    spacing.setAfter(BigInteger.valueOf(120));  // 段后6磅
-                    pPr.setSpacing(spacing);
+                    R run = (R) runObj;
+                    RPr rpr = Optional.ofNullable(run.getRPr()).orElseGet(factory::createRPr);
+                    run.setRPr(rpr);
 
-                    // 标题1/2
-                    if (pPr.getPStyle() != null) {
-                        String style = pPr.getPStyle().getVal();
-                        if ("Heading1".equals(style)) {
-                            spacing.setBefore(BigInteger.valueOf(600)); // 段前30磅
-                            spacing.setAfter(BigInteger.valueOf(120));
-                            for (Object runObj : runs) {
-                                if (runObj instanceof R) {
-                                    ((R) runObj).getRPr().getSz().setVal(BigInteger.valueOf(36)); // 18pt
-                                }
-                            }
-                        } else if ("Heading2".equals(style)) {
-                            spacing.setBefore(BigInteger.valueOf(120)); // 6磅
-                            spacing.setAfter(BigInteger.valueOf(120));
-                            for (Object runObj : runs) {
-                                if (runObj instanceof R) {
-                                    ((R) runObj).getRPr().getSz().setVal(BigInteger.valueOf(28)); // 14pt
-                                }
-                            }
-                        }
+                    // 字体设置
+                    RFonts rFonts = factory.createRFonts();
+                    rFonts.setAscii("Times New Roman");
+                    rFonts.setHAnsi("Times New Roman");
+                    rFonts.setEastAsia("SimSun");
+                    rpr.setRFonts(rFonts);
+
+                    // 字号设置
+                    HpsMeasure sz = factory.createHpsMeasure();
+                    sz.setVal(BigInteger.valueOf(22)); // 11pt
+                    rpr.setSz(sz);
+                }
+
+                // 段落行距
+                PPrBase.Spacing spacing = createSpacing(factory, 240, 120, 120);
+                pPr.setSpacing(spacing);
+
+                // 标题样式
+                if (pPr.getPStyle() != null) {
+                    String style = pPr.getPStyle().getVal();
+                    if ("Heading1".equals(style)) {
+                        applyHeadingStyle(factory, runs, spacing, 600, 120, 36);
+                    } else if ("Heading2".equals(style)) {
+                        applyHeadingStyle(factory, runs, spacing, 120, 120, 28);
                     }
                 }
             }
 
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            wordPackage.save(out);
-            return out.toByteArray();
-
+            try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                wordPackage.save(out);
+                return out.toByteArray();
+            }
         } catch (Exception e) {
             log.warn("applyStyles-样式处理失败，失败原因：", e);
             return null;
+        }
+    }
+
+    /**
+     * 应用标题样式
+     */
+    private static void applyHeadingStyle(ObjectFactory factory, List<Object> runs,
+                                          PPrBase.Spacing spacing, int before, int after, int fontSize) {
+        spacing.setBefore(BigInteger.valueOf(before));
+        spacing.setAfter(BigInteger.valueOf(after));
+        for (Object runObj : runs) {
+            if (runObj instanceof R) {
+                RPr rPr = Optional.ofNullable(((R) runObj).getRPr()).orElseGet(factory::createRPr);
+                ((R) runObj).setRPr(rPr);
+                rPr.getSz().setVal(BigInteger.valueOf(fontSize));
+            }
         }
     }
 }
