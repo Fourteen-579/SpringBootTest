@@ -20,6 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -35,53 +36,6 @@ import java.util.Map;
 @Slf4j
 public class MarkDownToWord {
 
-    public static final String STYLE = "<style>\n" +
-            "                body {\n" +
-            "                    font-family: SimSun, '宋体', serif;\n" +
-            "                    font-size: 12pt;\n" +
-            "                    line-height: 1.5;\n" +
-            "                    margin: 1cm 2cm;\n" +
-            "                }\n" +
-            "                h1 {\n" +
-            "                    font-size: 24pt;\n" +
-            "                    font-weight: bold;\n" +
-            "                    text-align: center;\n" +
-            "                    margin-top: 24pt;\n" +
-            "                    margin-bottom: 12pt;\n" +
-            "                }\n" +
-            "                h2 {\n" +
-            "                    font-size: 20pt;\n" +
-            "                    font-weight: bold;\n" +
-            "                    margin-top: 20pt;\n" +
-            "                    margin-bottom: 10pt;\n" +
-            "                }\n" +
-            "                h3 {\n" +
-            "                    font-size: 16pt;\n" +
-            "                    font-weight: bold;\n" +
-            "                    margin-top: 16pt;\n" +
-            "                    margin-bottom: 8pt;\n" +
-            "                }\n" +
-            "                p {\n" +
-            "                    text-indent: 2em;\n" +
-            "                    margin-top: 6pt;\n" +
-            "                    margin-bottom: 6pt;\n" +
-            "                }\n" +
-            "                table {\n" +
-            "                    border-collapse: collapse;\n" +
-            "                    width: 100%;\n" +
-            "                    margin-top: 10pt;\n" +
-            "                    margin-bottom: 10pt;\n" +
-            "                }\n" +
-            "                th, td {\n" +
-            "                    border: 1px solid #000000;\n" +
-            "                    padding: 5px;\n" +
-            "                    text-align: center;\n" +
-            "                }\n" +
-            "                th {\n" +
-            "                    background-color: #eaeaea;\n" +
-            "                    font-weight: bold;\n" +
-            "                }\n" +
-            "                </style>";
     public static final String END_TEXT = "参考来源\n" +
             "[1] 决胜“十四五” 打好收官战|“富矿精开”“点石成金”——贵州用好资源优势打造发展新动能 | 2025-09-16 \n" +
             "[2] 工程机械行业稳步迈入新一轮增长周期 | 2025-09-17 \n" +
@@ -96,36 +50,29 @@ public class MarkDownToWord {
             "[11] 吉林证监局联合启动2025年金融教育宣传周系列活动 | 2025-09-19\n" +
             "[12] 矿山地质环境保护与土地复垦方案审查结果公示 | 2025-09-16";
 
+    private static final ObjectFactory factory = new ObjectFactory();
+
     public static void main(String[] args) throws IOException, Docx4JException {
         //封面页
         String coverPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\frontCover.docx";
         byte[] cover = createCover(coverPath);
-        if (ObjectUtil.isNotEmpty(cover)) {
-            String outputPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\coverOutput.docx";
-            Files.write(Paths.get(outputPath), cover);
-        } else {
-            log.warn("createCover-转换失败，coverPath：{}", coverPath);
-        }
 
         //正文
         String mdPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\test.md";
         byte[] text = createText(mdPath);
-        if (ObjectUtil.isNotEmpty(text)) {
-            String outputPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\textOutput.docx";
-            Files.write(Paths.get(outputPath), text);
-        } else {
-            log.warn("createText-转换失败，mdPath：{}", mdPath);
-        }
 
         //合并
         byte[] bytes = mergeWordWithCoverAndFooter(cover, text, END_TEXT);
+
+        //整体样式处理
+        bytes = applyStyles(bytes);
+
         if (ObjectUtil.isNotEmpty(bytes)) {
             String outputPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\output.docx";
             Files.write(Paths.get(outputPath), bytes);
         } else {
             log.warn("mergeWordWithCoverAndFooter-合并失败");
         }
-
     }
 
     public static byte[] createCover(String coverPath) {
@@ -145,7 +92,7 @@ public class MarkDownToWord {
             template.writeAndClose(outputStream);
             return outputStream.toByteArray();
         } catch (Exception e) {
-            log.error("createCover-转换失败，失败原因：", e);
+            log.warn("createCover-转换失败，失败原因：", e);
         }
         return null;
     }
@@ -155,7 +102,7 @@ public class MarkDownToWord {
             String markdown = new String(Files.readAllBytes(Paths.get(textPath)), "UTF-8");
             return markdownToWord(markdown);
         } catch (Exception e) {
-            log.error("createText-转换失败，失败原因：", e);
+            log.warn("createText-转换失败，失败原因：", e);
         }
         return null;
     }
@@ -181,7 +128,7 @@ public class MarkDownToWord {
             HtmlRenderer renderer = HtmlRenderer.builder(options).build();
             Node document = parser.parse(markdown);
 
-            html = "<html><head>" + STYLE + "</head><body>" + renderer.render(document) + "</body></html>";
+            html = "<html><body>" + renderer.render(document) + "</body></html>";
 
             // 替换 <h2>
             html = html.replaceAll("<h2(.*?)>", "<h2 class=\"Heading1\"$1>");
@@ -208,24 +155,12 @@ public class MarkDownToWord {
         }
     }
 
-    public static void testHeading() {
-        String html = "<html><body>" + "<h1 class=\"Heading1\">一级标题</h1>\n" +
-                "<h2 class=\"Heading2\">二级标题</h2>" + "</body></html>";
-        try {
-            WordprocessingMLPackage wordPackage = WordprocessingMLPackage.createPackage();
-            MainDocumentPart mainDocumentPart = wordPackage.getMainDocumentPart();
-
-            XHTMLImporterImpl xhtmlImporter = new XHTMLImporterImpl(wordPackage);
-            mainDocumentPart.getContent().addAll(xhtmlImporter.convert(html, null));
-
-            wordPackage.save(Files.newOutputStream(Paths.get("C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\heading.docx")));
-        } catch (Exception e) {
-            log.error("testHeading-转换失败，失败原因：", e);
-        }
-    }
-
     /**
-     * 合并封面 + 正文 + 尾页文字 (适配 docx4j 3.3.6)
+     * 合并封面、正文、尾页
+     *
+     * @param coverBytes 封面
+     * @param bodyBytes  正文
+     * @param footerText 尾页文字
      */
     public static byte[] mergeWordWithCoverAndFooter(byte[] coverBytes, byte[] bodyBytes, String footerText) {
         try {
@@ -268,7 +203,7 @@ public class MarkDownToWord {
             return outputStream.toByteArray();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.warn("mergeWordWithCoverAndFooter-合并失败，失败原因：", e);
             return null;
         }
     }
@@ -287,4 +222,122 @@ public class MarkDownToWord {
         return p;
     }
 
+    public static byte[] applyStyles(byte[] wordBytes) {
+        try (ByteArrayInputStream in = new ByteArrayInputStream(wordBytes)) {
+            WordprocessingMLPackage wordPackage = WordprocessingMLPackage.load(in);
+            List<Object> paragraphs = wordPackage.getMainDocumentPart().getContent();
+
+            for (Object obj : paragraphs) {
+                if (obj instanceof P) {
+                    P p = (P) obj;
+                    PPr pPr = p.getPPr();
+                    if (pPr == null) {
+                        pPr = factory.createPPr();
+                        p.setPPr(pPr);
+                    }
+
+                    // 字体和字号
+                    List<Object> runs = p.getContent();
+                    for (Object runObj : runs) {
+                        if (runObj instanceof R) {
+                            R run = (R) runObj;
+                            RPr rpr = run.getRPr();
+                            if (rpr == null) {
+                                rpr = factory.createRPr();
+                                run.setRPr(rpr);
+                            }
+                            RFonts rFonts = factory.createRFonts();
+                            rFonts.setAscii("Times New Roman");  // 英文
+                            rFonts.setHAnsi("Times New Roman");  // 英文
+                            rFonts.setEastAsia("SimSun");        // 中文
+                            rpr.setRFonts(rFonts);
+
+                            HpsMeasure sz = factory.createHpsMeasure();
+                            sz.setVal(BigInteger.valueOf(22)); // 11pt
+                            rpr.setSz(sz);
+                        }
+                    }
+
+                    // 段落格式
+                    PPrBase.Spacing spacing = factory.createPPrBaseSpacing();
+                    spacing.setLine(BigInteger.valueOf(240)); // 单倍行距
+                    spacing.setBefore(BigInteger.valueOf(120)); // 段前6磅
+                    spacing.setAfter(BigInteger.valueOf(120));  // 段后6磅
+                    pPr.setSpacing(spacing);
+
+                    // 标题1/2
+                    if (pPr.getPStyle() != null) {
+                        String style = pPr.getPStyle().getVal();
+                        if ("Heading1".equals(style)) {
+                            spacing.setBefore(BigInteger.valueOf(600)); // 段前30磅
+                            spacing.setAfter(BigInteger.valueOf(120));
+                            for (Object runObj : runs) {
+                                if (runObj instanceof R) {
+                                    ((R) runObj).getRPr().getSz().setVal(BigInteger.valueOf(36)); // 18pt
+                                }
+                            }
+                        } else if ("Heading2".equals(style)) {
+                            spacing.setBefore(BigInteger.valueOf(120)); // 6磅
+                            spacing.setAfter(BigInteger.valueOf(120));
+                            for (Object runObj : runs) {
+                                if (runObj instanceof R) {
+                                    ((R) runObj).getRPr().getSz().setVal(BigInteger.valueOf(28)); // 18pt
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 表格处理
+                /*if (obj instanceof Tbl) {
+                    Tbl tbl = (Tbl) obj;
+                    List<Tr> rows = tbl.getContent();
+                    for (int i = 0; i < rows.size(); i++) {
+                        Tr row = rows.get(i);
+                        List<Tc> cells = row.getContent();
+                        for (int j = 0; j < cells.size(); j++) {
+                            Tc cell = cells.get(j);
+                            // 首行底色
+                            if (i == 0) {
+                                TcPr tcPr = cell.getTcPr();
+                                if (tcPr == null) {
+                                    tcPr = factory.createTcPr();
+                                    cell.setTcPr(tcPr);
+                                }
+                                CTShd shd = factory.createCTShd();
+                                shd.setFill("95b3d7");
+                                tcPr.setShd(shd);
+                            }
+                            // 首行首列加粗
+                            if (i == 0 || j == 0) {
+                                for (Object pObj : cell.getContent()) {
+                                    if (pObj instanceof P) {
+                                        P p = (P) pObj;
+                                        for (Object runObj : p.getContent()) {
+                                            if (runObj instanceof R) {
+                                                RPr rpr = ((R) runObj).getRPr();
+                                                if (rpr == null) {
+                                                    rpr = factory.createRPr();
+                                                    ((R) runObj).setRPr(rpr);
+                                                }
+                                                rpr.setB(factory.createBooleanDefaultTrue());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }*/
+            }
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            wordPackage.save(out);
+            return out.toByteArray();
+
+        } catch (Exception e) {
+            log.warn("applyStyles-样式处理失败，失败原因：", e);
+            return null;
+        }
+    }
 }
