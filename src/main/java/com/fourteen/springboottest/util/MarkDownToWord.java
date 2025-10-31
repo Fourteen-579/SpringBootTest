@@ -50,8 +50,6 @@ public class MarkDownToWord {
             "[11] 吉林证监局联合启动2025年金融教育宣传周系列活动 | 2025-09-19\n" +
             "[12] 矿山地质环境保护与土地复垦方案审查结果公示 | 2025-09-16";
 
-    private static final ObjectFactory factory = new ObjectFactory();
-
     public static void main(String[] args) throws IOException, Docx4JException {
         //封面页
         String coverPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\frontCover.docx";
@@ -67,6 +65,7 @@ public class MarkDownToWord {
         //整体样式处理
         bytes = applyTextStyles(bytes);
         bytes = setTableStyle(bytes);
+        bytes = setParagraphsStyle(bytes);
 
         if (ObjectUtil.isNotEmpty(bytes)) {
             String outputPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\output.docx";
@@ -222,6 +221,46 @@ public class MarkDownToWord {
         run.getContent().add(br);
         p.getContent().add(run);
         return p;
+    }
+
+    public static byte[] setParagraphsStyle(byte[] bytes) {
+        try (InputStream in = new ByteArrayInputStream(bytes)) {
+            WordprocessingMLPackage wordMLPackage = WordprocessingMLPackage.load(in);
+            ObjectFactory factory = Context.getWmlObjectFactory();
+            List<Object> paragraphs = wordMLPackage.getMainDocumentPart()
+                    .getJAXBNodesViaXPath("//w:p", true);
+
+            for (Object obj : paragraphs) {
+                P p = (P) XmlUtils.unwrap(obj);
+                if (p == null) continue;
+
+                PPr pPr = p.getPPr();
+                if (pPr == null) {
+                    pPr = factory.createPPr();
+                    p.setPPr(pPr);
+                }
+
+                if (pPr.getNumPr() != null) { // 带编号段落
+                    PPrBase.Ind ind = pPr.getInd();
+                    if (ind == null) {
+                        ind = factory.createPPrBaseInd();
+                        pPr.setInd(ind);
+                    }
+
+                    // 设置小缩进，让序号和文本靠近
+                    ind.setLeft(BigInteger.valueOf(100));     // 左缩进约 0.18 cm
+                    ind.setHanging(BigInteger.valueOf(100));  // 首行悬挂缩进
+                }
+            }
+
+            try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                wordMLPackage.save(out);
+                return out.toByteArray();
+            }
+        } catch (Exception e) {
+            log.warn("setParagraphsStyle-样式处理失败，失败原因：", e);
+            return null;
+        }
     }
 
     public static byte[] setTableStyle(byte[] bytes) {
