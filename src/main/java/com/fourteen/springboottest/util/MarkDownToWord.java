@@ -9,6 +9,7 @@ import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.data.MutableDataSet;
 import lombok.extern.slf4j.Slf4j;
 import org.docx4j.XmlUtils;
+import org.docx4j.convert.in.xhtml.FormattingOption;
 import org.docx4j.convert.in.xhtml.XHTMLImporterImpl;
 import org.docx4j.jaxb.Context;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
@@ -141,6 +142,7 @@ public class MarkDownToWord {
             MainDocumentPart mainDocumentPart = wordPackage.getMainDocumentPart();
 
             XHTMLImporterImpl xhtmlImporter = new XHTMLImporterImpl(wordPackage);
+            xhtmlImporter.setTableFormatting(FormattingOption.CLASS_TO_STYLE_ONLY);
             mainDocumentPart.getContent().addAll(xhtmlImporter.convert(html, null));
 
             ByteArrayOutputStream outArrayByteStream = new ByteArrayOutputStream();
@@ -237,6 +239,12 @@ public class MarkDownToWord {
                 TblPr tblPr = Optional.ofNullable(tbl.getTblPr()).orElseGet(factory::createTblPr);
                 tbl.setTblPr(tblPr);
 
+                tblPr.setTblW(null);
+                // 设置表格布局为自动（允许列宽根据内容自动调整）
+                CTTblLayoutType layoutType = factory.createCTTblLayoutType();
+                layoutType.setType(STTblLayoutType.AUTOFIT);
+                tblPr.setTblLayout(layoutType);
+
                 // 单元格间距（0表示无缝隙）
                 TblWidth cellSpacing = factory.createTblWidth();
                 cellSpacing.setType("dxa");
@@ -272,6 +280,8 @@ public class MarkDownToWord {
 
                         TcPr tcPr = Optional.ofNullable(cell.getTcPr()).orElseGet(factory::createTcPr);
                         cell.setTcPr(tcPr);
+
+                        tcPr.setTcW(null);
 
                         // 段落居中与间距
                         for (Object pObj : cell.getContent()) {
