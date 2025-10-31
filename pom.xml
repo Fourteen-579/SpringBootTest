@@ -47,12 +47,6 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>com.luhuiguo</groupId>
-            <artifactId>aspose-words</artifactId>
-            <version>23.1</version>
-        </dependency>
-
         <!-- Markdown 解析器 -->
         <dependency>
             <groupId>com.vladsch.flexmark</groupId>

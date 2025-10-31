@@ -1,6 +1,9 @@
 package com.fourteen.springboottest.util;
 
 import cn.hutool.core.util.ObjectUtil;
+import com.aspose.words.*;
+import com.aspose.words.Body;
+import com.aspose.words.Document;
 import com.deepoove.poi.XWPFTemplate;
 import com.vladsch.flexmark.ext.tables.TablesExtension;
 import com.vladsch.flexmark.html.HtmlRenderer;
@@ -17,16 +20,15 @@ import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.wml.*;
+import com.aspose.words.*;
 
 import javax.xml.bind.JAXBElement;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.List;
 
 /**
  * @author Fourteen_ksz
@@ -247,9 +249,8 @@ public class MarkDownToWord {
                         pPr.setInd(ind);
                     }
 
-                    // 设置小缩进，让序号和文本靠近
-                    ind.setLeft(BigInteger.valueOf(100));     // 左缩进约 0.18 cm
-                    ind.setHanging(BigInteger.valueOf(100));  // 首行悬挂缩进
+                    ind.setHanging(BigInteger.valueOf(-260));  // 首行悬挂缩进
+                    ind.setLeft(BigInteger.valueOf(50));
                 }
             }
 
