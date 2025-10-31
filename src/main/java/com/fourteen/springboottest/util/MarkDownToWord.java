@@ -241,18 +241,24 @@ public class MarkDownToWord {
                     tbl.setTblPr(tblPr);
                 }
 
-                // 设置表格边框样式（每个单元格之间有单线边框）
-                TblBorders borders = new TblBorders();
+                // 创建单线边框样式
                 CTBorder border = new CTBorder();
-                border.setVal(STBorder.SINGLE);  // 单线边框
-                border.setSz(BigInteger.valueOf(8));  // 设置边框粗细
-                border.setSpace(BigInteger.valueOf(0));  // 设置边框间距
-                border.setColor("000000");  // 设置边框颜色
+                border.setVal(STBorder.SINGLE);         // 单线边框
+                border.setSz(BigInteger.valueOf(8));    // 边框宽度 (单位: 1/8 pt)，8 ≈ 1pt
+                border.setSpace(BigInteger.ZERO);       // 无间距
+                border.setColor("000000");              // 黑色边框
+
+                // 将边框应用到表格各个方向
+                TblBorders borders = new TblBorders();
                 borders.setTop(border);
                 borders.setBottom(border);
                 borders.setLeft(border);
                 borders.setRight(border);
-                tblPr.setTblBorders(borders);  // 将边框设置到表格属性中
+                borders.setInsideH(border); // 表格内部的水平线
+                borders.setInsideV(border); // 表格内部的垂直线
+
+                // 应用到表格
+                tblPr.setTblBorders(borders);
 
                 // 设置表格宽度和居中对齐
                 TblWidth width = new TblWidth();
@@ -290,8 +296,25 @@ public class MarkDownToWord {
                         }
                         CTVerticalJc tcPrValign = factory.createCTVerticalJc();
                         tcPrValign.setVal(STVerticalJc.CENTER);
-                        // 默认设置单元格内容【垂直居中】
                         tcPr.setVAlign(tcPrValign);
+
+                        // 表格内容水平居中（针对单元格里的每个段落）
+                        for (Object pObj : cell.getContent()) {
+                            Object unwrappedP = XmlUtils.unwrap(pObj);
+                            if (unwrappedP instanceof P) {
+                                P p = (P) unwrappedP;
+
+                                // 获取或创建段落属性
+                                PPr pPr = p.getPPr();
+                                if (pPr == null) {
+                                    pPr = factory.createPPr();
+                                    p.setPPr(pPr);
+                                }
+
+                                // 设置段落居中
+                                pPr.setJc(jc);
+                            }
+                        }
 
                         // 首行设置单元格底色
                         if (i == 0) {
@@ -391,7 +414,7 @@ public class MarkDownToWord {
                             spacing.setAfter(BigInteger.valueOf(120));
                             for (Object runObj : runs) {
                                 if (runObj instanceof R) {
-                                    ((R) runObj).getRPr().getSz().setVal(BigInteger.valueOf(28)); // 18pt
+                                    ((R) runObj).getRPr().getSz().setVal(BigInteger.valueOf(28)); // 14pt
                                 }
                             }
                         }
