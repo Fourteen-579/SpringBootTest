@@ -249,8 +249,8 @@ public class MarkDownToWord {
                         pPr.setInd(ind);
                     }
 
-                    ind.setHanging(BigInteger.valueOf(-260));  // 首行悬挂缩进
-                    ind.setLeft(BigInteger.valueOf(50));
+                    ind.setHanging(BigInteger.valueOf(-260));
+                    ind.setLeft(BigInteger.valueOf(100));
                 }
             }
 
