@@ -1,9 +1,6 @@
 package com.fourteen.springboottest.util;
 
 import cn.hutool.core.util.ObjectUtil;
-import com.aspose.words.*;
-import com.aspose.words.Body;
-import com.aspose.words.Document;
 import com.deepoove.poi.XWPFTemplate;
 import com.vladsch.flexmark.ext.tables.TablesExtension;
 import com.vladsch.flexmark.html.HtmlRenderer;
@@ -14,21 +11,25 @@ import lombok.extern.slf4j.Slf4j;
 import org.docx4j.XmlUtils;
 import org.docx4j.convert.in.xhtml.FormattingOption;
 import org.docx4j.convert.in.xhtml.XHTMLImporterImpl;
+import org.docx4j.dml.wordprocessingDrawing.Inline;
 import org.docx4j.jaxb.Context;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.openpackaging.parts.WordprocessingML.BinaryPartAbstractImage;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
+import org.docx4j.openpackaging.parts.WordprocessingML.NumberingDefinitionsPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.wml.*;
-import com.aspose.words.*;
 
 import javax.xml.bind.JAXBElement;
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.List;
 
 /**
  * @author Fourteen_ksz
@@ -66,7 +67,7 @@ public class MarkDownToWord {
 
         //整体样式处理
         bytes = applyTextStyles(bytes);
-        bytes = setTableStyle(bytes);
+//        bytes = setTableStyle(bytes);
         bytes = setParagraphsStyle(bytes);
 
         if (ObjectUtil.isNotEmpty(bytes)) {
@@ -189,18 +190,39 @@ public class MarkDownToWord {
                 coverStyles.getContents().getStyle().addAll(bodyStyles.getContents().getStyle());
             }
 
-            // 4. 封面后分页
+            // 4. 拷贝正文的编号定义 (防止圆点丢失)
+            NumberingDefinitionsPart bodyNumbering = bodyMainPart.getNumberingDefinitionsPart();
+            if (bodyNumbering != null) {
+                NumberingDefinitionsPart coverNumbering = coverMainPart.getNumberingDefinitionsPart();
+                if (coverNumbering == null) {
+                    coverNumbering = new NumberingDefinitionsPart();
+                    coverMainPart.addTargetPart(coverNumbering);
+                }
+
+                // 将正文的 numbering.xml 合并到封面
+                org.docx4j.wml.Numbering bodyNum = bodyNumbering.getContents();
+                if (bodyNum != null && bodyNum.getAbstractNum() != null) {
+                    if (coverNumbering.getContents() == null) {
+                        coverNumbering.setJaxbElement(Context.getWmlObjectFactory().createNumbering());
+                    }
+                    org.docx4j.wml.Numbering coverNum = coverNumbering.getContents();
+                    coverNum.getAbstractNum().addAll(bodyNum.getAbstractNum());
+                    coverNum.getNum().addAll(bodyNum.getNum());
+                }
+            }
+
+            // 5. 封面后分页
             coverMainPart.getContent().add(createPageBreak());
 
-            // 5. 合并正文段落内容
+            // 6. 合并正文内容
             List<Object> bodyContent = bodyMainPart.getContent();
             coverMainPart.getContent().addAll(bodyContent);
 
-            // 6. 尾页文字
+            // 7. 添加尾页
             coverMainPart.getContent().add(createPageBreak());
             coverMainPart.addParagraphOfText(footerText);
 
-            // 7. 输出 byte[]
+            // 8. 输出 byte[]
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             coverPackage.save(outputStream);
             return outputStream.toByteArray();
@@ -249,8 +271,7 @@ public class MarkDownToWord {
                         pPr.setInd(ind);
                     }
 
-                    ind.setHanging(BigInteger.valueOf(-260));
-                    ind.setLeft(BigInteger.valueOf(100));
+                    ind.setLeft(BigInteger.valueOf(567));
                 }
             }
 
@@ -483,4 +504,132 @@ public class MarkDownToWord {
             }
         }
     }
+    /**
+     * 在样式为 Heading2 且文字为 titleName 的段落后插入图片+说明文字
+     */
+    public static byte[] insertImageAndTextAfterHeading2(byte[] wordBytes,
+                                                         String titleName,
+                                                         List<byte[]> images,
+                                                         List<String> captions) {
+        try (InputStream in = new ByteArrayInputStream(wordBytes)) {
+            WordprocessingMLPackage wordMLPackage = WordprocessingMLPackage.load(in);
+            MainDocumentPart mainPart = wordMLPackage.getMainDocumentPart();
+            ObjectFactory factory = Context.getWmlObjectFactory();
+
+            // 获取所有段落
+            List<Object> paragraphs = mainPart.getJAXBNodesViaXPath("//w:p", true);
+
+            int insertIndex = -1;
+            for (int i = 0; i < paragraphs.size(); i++) {
+                P p = (P) XmlUtils.unwrap(paragraphs.get(i));
+                String styleId = getParagraphStyleId(p);
+                String text = getParagraphText(p);
+
+                // 匹配样式为 Heading2 且文字等于指定标题
+                if ("Heading2".equalsIgnoreCase(styleId)
+                        && titleName.equals(text != null ? text.trim() : "")) {
+                    insertIndex = i + 1;
+                    break;
+                }
+            }
+
+            if (insertIndex == -1) {
+                System.out.println("未找到二级标题: " + titleName);
+                return wordBytes;
+            }
+
+            // 插入图片与说明文字
+            for (int j = 0; j < images.size(); j++) {
+                byte[] imgBytes = images.get(j);
+                String caption = captions.size() > j ? captions.get(j) : "";
+
+                P imageParagraph = createImageParagraph(wordMLPackage, imgBytes, 5000, 3000); // 宽高可调
+                mainPart.getContent().add(insertIndex++, imageParagraph);
+
+                P captionParagraph = createFormattedTextParagraph(factory, caption);
+                mainPart.getContent().add(insertIndex++, captionParagraph);
+            }
+
+            // 导出结果
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            wordMLPackage.save(out);
+            return out.toByteArray();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return wordBytes;
+        }
+    }
+
+    /** 提取段落文字 */
+    private static String getParagraphText(P paragraph) {
+        StringBuilder sb = new StringBuilder();
+        for (Object o : paragraph.getContent()) {
+            Object unwrapped = XmlUtils.unwrap(o);
+            if (unwrapped instanceof R) {
+                R run = (R) unwrapped;
+                for (Object rObj : run.getContent()) {
+                    Object t = XmlUtils.unwrap(rObj);
+                    if (t instanceof Text) {
+                        sb.append(((Text) t).getValue());
+                    }
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    /** 获取段落样式ID（如 "Heading1"、"Heading2"） */
+    private static String getParagraphStyleId(P p) {
+        if (p.getPPr() != null && p.getPPr().getPStyle() != null) {
+            return p.getPPr().getPStyle().getVal();
+        }
+        return null;
+    }
+
+    /** 创建图片段落 */
+    private static P createImageParagraph(WordprocessingMLPackage wordMLPackage, byte[] imageBytes, int width, int height) throws Exception {
+        BinaryPartAbstractImage imagePart = BinaryPartAbstractImage.createImagePart(wordMLPackage, imageBytes);
+        Inline inline = imagePart.createImageInline(null, null, 0, 1, width, height, false);
+
+        ObjectFactory factory = Context.getWmlObjectFactory();
+        P p = factory.createP();
+        R r = factory.createR();
+        Drawing drawing = factory.createDrawing();
+        drawing.getAnchorOrInline().add(inline);
+        r.getContent().add(drawing);
+        p.getContent().add(r);
+        return p;
+    }
+
+    /** 创建格式化文字段落（如加粗、居中） */
+    private static P createFormattedTextParagraph(ObjectFactory factory, String text) {
+        P p = factory.createP();
+        R r = factory.createR();
+        Text t = factory.createText();
+        t.setValue(text);
+
+        RPr rPr = factory.createRPr();
+        // 字号：12pt
+        HpsMeasure size = new HpsMeasure();
+        size.setVal(BigInteger.valueOf(24)); // 12pt
+        rPr.setSz(size);
+        rPr.setSzCs(size);
+        // 加粗
+        BooleanDefaultTrue b = new BooleanDefaultTrue();
+        rPr.setB(b);
+        r.setRPr(rPr);
+        r.getContent().add(t);
+        p.getContent().add(r);
+
+        // 段落居中
+        PPr pPr = factory.createPPr();
+        Jc jc = factory.createJc();
+        jc.setVal(JcEnumeration.CENTER);
+        pPr.setJc(jc);
+        p.setPPr(pPr);
+
+        return p;
+    }
+
 }
