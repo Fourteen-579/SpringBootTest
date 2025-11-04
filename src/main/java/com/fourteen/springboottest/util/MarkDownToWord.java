@@ -2,12 +2,16 @@ package com.fourteen.springboottest.util;
 
 import cn.hutool.core.util.ObjectUtil;
 import com.deepoove.poi.XWPFTemplate;
+import com.deepoove.poi.data.ChartMultiSeriesRenderData;
+import com.deepoove.poi.data.ChartSingleSeriesRenderData;
+import com.deepoove.poi.data.Charts;
 import com.vladsch.flexmark.ext.tables.TablesExtension;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.data.MutableDataSet;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.docx4j.XmlUtils;
 import org.docx4j.convert.in.xhtml.FormattingOption;
 import org.docx4j.convert.in.xhtml.XHTMLImporterImpl;
@@ -20,10 +24,7 @@ import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.wml.*;
 
 import javax.xml.bind.JAXBElement;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -52,7 +53,16 @@ public class MarkDownToWord {
             "[12] 矿山地质环境保护与土地复垦方案审查结果公示 | 2025-09-16";
 
     public static void main(String[] args) throws IOException, Docx4JException {
-        //封面页
+        //图表数据
+        String chartPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\tableTemplate.docx";
+        byte[] chart = createChart(chartPath);
+        if(ObjectUtil.isEmpty(chart)){
+            log.warn("createChart-转换失败");
+            return;
+        }
+        Files.write(Paths.get("C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\chart.docx"), chart);
+
+/*        //封面页
         String coverPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\frontCover.docx";
         byte[] cover = createCover(coverPath);
 
@@ -73,6 +83,45 @@ public class MarkDownToWord {
             Files.write(Paths.get(outputPath), bytes);
         } else {
             log.warn("mergeWordWithCoverAndFooter-合并失败");
+        }*/
+    }
+
+    public static byte[] createChart(String chartPath){
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            Map<String, Object> map = new HashMap<>();
+
+            ChartMultiSeriesRenderData chart = Charts
+                    .ofComboSeries("报告期涨跌幅", new String[]{
+                            "平煤股份",
+                            "潞安环能",
+                            "山西焦煤",
+                            "永泰能源",
+                            "煤炭(申万一级)",
+                            "焦煤(申万三级)",
+                            "上证指数",
+                            "沪深300"
+                    })
+                    .addBarSeries("涨跌幅", new Double[]{
+                            2.02,
+                            13.04,
+                            6.90,
+                            13.42,
+                            3.51,
+                            7.26,
+                            -1.30,
+                            -0.44
+                    })
+                    .create();
+
+            map.put("statisticChart", chart);
+            map.put("abbrName","东方财富");
+
+            XWPFTemplate template = XWPFTemplate.compile(chartPath).render(map);
+            template.write(outputStream);
+            return outputStream.toByteArray();
+        } catch (Exception e) {
+            log.error("createChart-生成图表失败", e);
+            return null;
         }
     }
 
