@@ -11,7 +11,6 @@ import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.data.MutableDataSet;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.docx4j.XmlUtils;
 import org.docx4j.convert.in.xhtml.FormattingOption;
 import org.docx4j.convert.in.xhtml.XHTMLImporterImpl;
@@ -90,30 +89,8 @@ public class MarkDownToWord {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             Map<String, Object> map = new HashMap<>();
 
-            ChartMultiSeriesRenderData chart = Charts
-                    .ofComboSeries("报告期涨跌幅", new String[]{
-                            "平煤股份",
-                            "潞安环能",
-                            "山西焦煤",
-                            "永泰能源",
-                            "煤炭(申万一级)",
-                            "焦煤(申万三级)",
-                            "上证指数",
-                            "沪深300"
-                    })
-                    .addBarSeries("涨跌幅", new Double[]{
-                            2.02,
-                            13.04,
-                            6.90,
-                            13.42,
-                            3.51,
-                            7.26,
-                            -1.30,
-                            -0.44
-                    })
-                    .create();
-
-            map.put("statisticChart", chart);
+            map.put("statisticChart", createStatisticChartData());
+            map.put("marketChart", createMarketChartData());
             map.put("abbrName","东方财富");
 
             XWPFTemplate template = XWPFTemplate.compile(chartPath).render(map);
@@ -123,6 +100,65 @@ public class MarkDownToWord {
             log.error("createChart-生成图表失败", e);
             return null;
         }
+    }
+
+    public static ChartMultiSeriesRenderData createStatisticChartData() {
+        ChartMultiSeriesRenderData chart = Charts
+                .ofComboSeries("", new String[]{
+                        "平煤股份",
+                        "潞安环能",
+                        "山西焦煤",
+                        "永泰能源",
+                        "煤炭(申万一级)",
+                        "焦煤(申万三级)",
+                        "上证指数",
+                        "沪深300"
+                })
+                .addBarSeries("涨跌幅", new Double[]{
+                        2.02,
+                        13.04,
+                        6.90,
+                        13.42,
+                        3.51,
+                        7.26,
+                        -1.30,
+                        -0.44
+                })
+                .create();
+
+        return chart;
+    }
+
+    public static ChartMultiSeriesRenderData createMarketChartData() {
+            // 数据：交易时间，收盘价（不复权），成交量（万股），成交金额（万元）
+            String[] dates = {
+                    "2025-09-15", "2025-09-16", "2025-09-17", "2025-09-18", "2025-09-19"
+            };
+
+            // 收盘价（不复权）
+            Double[] closePrices = {
+                    8.0300, 8.0600, 8.1000, 7.8900, 8.0700
+            };
+
+            // 成交量（万股）
+            Double[] volumes = {
+                    2815.4088, 3674.6904, 3532.8273, 3302.1030, 3239.6603
+            };
+
+            // 成交金额（万元）
+            Double[] turnover = {
+                    22413.0359, 29814.4976, 28645.1952, 26282.2999, 25926.0647
+            };
+
+            // 创建图表
+            ChartMultiSeriesRenderData chart = Charts
+                    .ofComboSeries("", dates)
+                    .addLineSeries("收盘价(不复权)", closePrices)
+                    .addBarSeries("成交量(万股)", volumes)
+                    .addBarSeries("成交金额(万元)", turnover)
+                    .create();
+
+            return  chart;
     }
 
     public static byte[] createCover(String coverPath) {
