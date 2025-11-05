@@ -16,16 +16,10 @@ import org.docx4j.convert.in.xhtml.XHTMLImporterImpl;
 import org.docx4j.jaxb.Context;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
-import org.docx4j.openpackaging.parts.Part;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.NumberingDefinitionsPart;
-import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
-import org.docx4j.openpackaging.parts.relationships.RelationshipsPart;
-import org.docx4j.relationships.Relationship;
-import org.docx4j.vml.CTShapetype;
 import org.docx4j.wml.*;
 
-import javax.xml.bind.JAXBElement;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -34,7 +28,6 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * @author Fourteen_ksz
@@ -269,44 +262,116 @@ public class MarkDownToWord {
         }
     }
 
-
     public static byte[] setParagraphsStyle(byte[] bytes) {
         try (InputStream in = new ByteArrayInputStream(bytes)) {
             WordprocessingMLPackage wordMLPackage = WordprocessingMLPackage.load(in);
             ObjectFactory factory = Context.getWmlObjectFactory();
+
+            // numbering 部分（可能为 null）
+            NumberingDefinitionsPart numberingPart = wordMLPackage.getMainDocumentPart().getNumberingDefinitionsPart();
+            org.docx4j.wml.Numbering numbering = numberingPart == null ? null : numberingPart.getContents();
+
+            // 获取所有段落
             List<Object> paragraphs = wordMLPackage.getMainDocumentPart()
                     .getJAXBNodesViaXPath("//w:p", true);
 
             for (Object obj : paragraphs) {
-                P p = (P) XmlUtils.unwrap(obj);
-                if (p == null) continue;
+                // 可能是 JAXBElement 或 已 unwrap 的对象
+                Object unwrapped = XmlUtils.unwrap(obj);
+                if (!(unwrapped instanceof P)) continue;
+                P p = (P) unwrapped;
 
                 PPr pPr = p.getPPr();
-                if (pPr == null) {
-                    pPr = factory.createPPr();
-                    p.setPPr(pPr);
-                }
+                if (pPr == null) continue;
 
-                // 获取段落的样式
-                if (pPr.getPStyle() != null) {
-                    String style = pPr.getPStyle().getVal();
+                // 如果没有 numPr 则跳过
+                if (pPr.getNumPr() == null || pPr.getNumPr().getNumId() == null) continue;
 
-                    // 如果是 Heading1 或 Heading2 样式
-                    if ("Heading1".equals(style) || "Heading2".equals(style)) {
-                        // 确保没有编号样式
-                        if (pPr.getNumPr() != null) {
-                            pPr.setNumPr(null); // 移除编号
+                // 获取 numId（BigInteger）
+                BigInteger numIdVal = pPr.getNumPr().getNumId().getVal();
+                if (numIdVal == null || numbering == null) continue;
+
+                // 通过 numId 在 numbering.getNum() 中找到对应的 <w:num>
+                Numbering.Num matchedNum = null;
+                List<Numbering.Num> nums = numbering.getNum();
+                if (nums != null) {
+                    for (Numbering.Num n : nums) {
+                        if (n.getNumId() != null && n.getNumId().equals(numIdVal)) {
+                            matchedNum = n;
+                            break;
                         }
                     }
                 }
+                if (matchedNum == null) continue;
 
-                if (pPr.getNumPr() != null) { // 带编号段落
-                    PPrBase.Ind ind = pPr.getInd();
-                    if (ind == null) {
-                        ind = factory.createPPrBaseInd();
-                        pPr.setInd(ind);
+                // 从 matchedNum 找到 abstractNumId，然后在 numbering.getAbstractNum() 中查找对应的 AbstractNum
+                BigInteger abstractNumIdVal = null;
+                if (matchedNum.getAbstractNumId() != null && matchedNum.getAbstractNumId().getVal() != null) {
+                    abstractNumIdVal = matchedNum.getAbstractNumId().getVal();
+                }
+                if (abstractNumIdVal == null) continue;
+
+                Numbering.AbstractNum matchedAbstract = null;
+                List<Numbering.AbstractNum> abstractNums = numbering.getAbstractNum();
+                if (abstractNums != null) {
+                    for (Numbering.AbstractNum an : abstractNums) {
+                        if (an.getAbstractNumId() != null && an.getAbstractNumId().equals(abstractNumIdVal)) {
+                            matchedAbstract = an;
+                            break;
+                        }
                     }
+                }
+                if (matchedAbstract == null) continue;
 
+                // 通常我们检查第 0 级（lvl index 0），也可以根据 ilvl 决定具体级别
+                // 如果段落有 ilvl 那么优先用 ilvl；否则用 0
+                int levelIndex = 0;
+                if (pPr.getNumPr().getIlvl() != null && pPr.getNumPr().getIlvl().getVal() != null) {
+                    try {
+                        levelIndex = pPr.getNumPr().getIlvl().getVal().intValue();
+                    } catch (Exception ignored) {
+                        levelIndex = 0;
+                    }
+                }
+
+                // 找出对应级别的 Lvl 节点（防 NPE）
+                Lvl lvl = null;
+                List<Lvl> lvls = matchedAbstract.getLvl();
+                if (lvls != null) {
+                    for (Lvl l : lvls) {
+                        if (l.getIlvl() != null && l.getIlvl().intValue() == levelIndex) {
+                            lvl = l;
+                            break;
+                        }
+                    }
+                    if (lvl == null && !lvls.isEmpty()) lvl = lvls.get(0); // 回退到第一个级别
+                }
+                if (lvl == null) continue;
+
+                // numFmt 存在于 lvl.getNumFmt().getVal()
+                String numFmt = null;
+                if (lvl.getNumFmt() != null && lvl.getNumFmt().getVal() != null) {
+                    numFmt = lvl.getNumFmt().getVal().toString(); // e.g. "decimal", "bullet"
+                }
+
+                // 获取或创建 ind
+                PPrBase.Ind ind = pPr.getInd();
+                if (ind == null) {
+                    ind = factory.createPPrBaseInd();
+                    pPr.setInd(ind);
+                }
+
+                // 根据 numFmt 设定不同的 left 值（你可以根据需要调整数值）
+                if (numFmt != null) {
+                    if ("bullet".equalsIgnoreCase(numFmt)) {
+                        // 无序列表（项目符号）
+                        ind.setLeft(BigInteger.valueOf(1000));
+                    } else {
+                        // 其它当作有序处理（decimal, upperRoman, lowerLetter 等）
+                        ind.setLeft(BigInteger.valueOf(500));
+                    }
+                } else {
+                    // 未知类型，使用默认
                     ind.setLeft(BigInteger.valueOf(500));
                 }
             }

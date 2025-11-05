@@ -3,6 +3,7 @@ package com.fourteen.springboottest.util;
 import com.aspose.words.*;
 import lombok.extern.slf4j.Slf4j;
 
+import java.awt.*;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -166,19 +167,19 @@ public class WordMerge {
                 // 表格整体宽度居中 + 自动适应内容
                 table.setAlignment(TableAlignment.CENTER);
                 table.autoFit(AutoFitBehavior.AUTO_FIT_TO_CONTENTS);
-
-                // 去除表格之间的空隙（单元格间距）
                 table.setAllowAutoFit(true);
+
+                // 设置表格单元格之间的间距为0
                 table.setCellSpacing(0);
 
                 // 设置边框样式（等价于 docx4j 中的 CTBorder）
-                table.setBorders(LineStyle.SINGLE, 0.75, java.awt.Color.BLACK);
+                table.setBorders(LineStyle.SINGLE, 0.75, new Color(128, 128, 128));
 
                 // 表格宽度为页面宽度的 50%
                 double pageWidth = doc.getFirstSection().getPageSetup().getPageWidth()
                         - doc.getFirstSection().getPageSetup().getLeftMargin()
                         - doc.getFirstSection().getPageSetup().getRightMargin();
-                table.setPreferredWidth(PreferredWidth.fromPoints(pageWidth * 0.5));
+                table.setPreferredWidth(PreferredWidth.fromPoints(pageWidth * 0.9));
 
                 // 遍历行
                 for (int i = 0; i < table.getRows().getCount(); i++) {
