@@ -3,7 +3,6 @@ package com.fourteen.springboottest.util;
 import cn.hutool.core.util.ObjectUtil;
 import com.deepoove.poi.XWPFTemplate;
 import com.deepoove.poi.data.ChartMultiSeriesRenderData;
-import com.deepoove.poi.data.ChartSingleSeriesRenderData;
 import com.deepoove.poi.data.Charts;
 import com.vladsch.flexmark.ext.tables.TablesExtension;
 import com.vladsch.flexmark.html.HtmlRenderer;
@@ -17,17 +16,25 @@ import org.docx4j.convert.in.xhtml.XHTMLImporterImpl;
 import org.docx4j.jaxb.Context;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.openpackaging.parts.Part;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.NumberingDefinitionsPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
+import org.docx4j.openpackaging.parts.relationships.RelationshipsPart;
+import org.docx4j.relationships.Relationship;
+import org.docx4j.vml.CTShapetype;
 import org.docx4j.wml.*;
 
 import javax.xml.bind.JAXBElement;
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author Fourteen_ksz
@@ -55,43 +62,63 @@ public class MarkDownToWord {
         //图表数据
         String chartPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\tableTemplate.docx";
         byte[] chart = createChart(chartPath);
-        if(ObjectUtil.isEmpty(chart)){
+        if (ObjectUtil.isEmpty(chart)) {
             log.warn("createChart-转换失败");
             return;
         }
-        Files.write(Paths.get("C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\chart.docx"), chart);
 
-/*        //封面页
+        //封面页
         String coverPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\frontCover.docx";
         byte[] cover = createCover(coverPath);
+        if (ObjectUtil.isEmpty(cover)) {
+            log.warn("createCover-转换失败");
+            return;
+        }
 
         //正文
         String mdPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\test.md";
         byte[] text = createText(mdPath);
+        if (ObjectUtil.isEmpty(text)) {
+            log.warn("createText-转换失败");
+            return;
+        }
 
-        //合并
-        byte[] bytes = mergeWordWithCoverAndFooter(cover, text, END_TEXT);
+        //设置段落格式
+        text = setParagraphsStyle(text);
+
+        //合并图表和正文
+        text = WordMerge.insertChartAfterHeading2(text, chart, "股价走势");
+        if (ObjectUtil.isEmpty(text)) {
+            log.warn("insertChartAfterHeading2-转换失败");
+            return;
+        }
+
+        //合并封面 正文 参考文献
+        byte[] bytes = WordMerge.mergeWordWithCoverAndFooter(cover, text, END_TEXT);
+        if (ObjectUtil.isEmpty(bytes)) {
+            log.warn("mergeWordWithCoverAndFooter-转换失败");
+            return;
+        }
 
         //整体样式处理
         bytes = applyTextStyles(bytes);
-//        bytes = setTableStyle(bytes);
-        bytes = setParagraphsStyle(bytes);
+        bytes = WordMerge.setTableStyle(bytes);
 
         if (ObjectUtil.isNotEmpty(bytes)) {
             String outputPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\output.docx";
             Files.write(Paths.get(outputPath), bytes);
         } else {
             log.warn("mergeWordWithCoverAndFooter-合并失败");
-        }*/
+        }
     }
 
-    public static byte[] createChart(String chartPath){
+    public static byte[] createChart(String chartPath) {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             Map<String, Object> map = new HashMap<>();
 
             map.put("statisticChart", createStatisticChartData());
             map.put("marketChart", createMarketChartData());
-            map.put("abbrName","东方财富");
+            map.put("abbrName", "东方财富");
 
             XWPFTemplate template = XWPFTemplate.compile(chartPath).render(map);
             template.write(outputStream);
@@ -114,7 +141,7 @@ public class MarkDownToWord {
                         "上证指数",
                         "沪深300"
                 })
-                .addBarSeries("涨跌幅", new Double[]{
+                .addBarSeries("报告期涨跌幅(%)", new Double[]{
                         2.02,
                         13.04,
                         6.90,
@@ -130,35 +157,35 @@ public class MarkDownToWord {
     }
 
     public static ChartMultiSeriesRenderData createMarketChartData() {
-            // 数据：交易时间，收盘价（不复权），成交量（万股），成交金额（万元）
-            String[] dates = {
-                    "2025-09-15", "2025-09-16", "2025-09-17", "2025-09-18", "2025-09-19"
-            };
+        // 数据：交易时间，收盘价（不复权），成交量（万股），成交金额（万元）
+        String[] dates = {
+                "2025-09-15", "2025-09-16", "2025-09-17", "2025-09-18", "2025-09-19"
+        };
 
-            // 收盘价（不复权）
-            Double[] closePrices = {
-                    8.0300, 8.0600, 8.1000, 7.8900, 8.0700
-            };
+        // 收盘价（不复权）
+        Double[] closePrices = {
+                8.0300, 8.0600, 8.1000, 7.8900, 8.0700
+        };
 
-            // 成交量（万股）
-            Double[] volumes = {
-                    2815.4088, 3674.6904, 3532.8273, 3302.1030, 3239.6603
-            };
+        // 成交量（万股）
+        Double[] volumes = {
+                2815.4088, 3674.6904, 3532.8273, 3302.1030, 3239.6603
+        };
 
-            // 成交金额（万元）
-            Double[] turnover = {
-                    22413.0359, 29814.4976, 28645.1952, 26282.2999, 25926.0647
-            };
+        // 成交金额（万元）
+        Double[] turnover = {
+                22413.0359, 29814.4976, 28645.1952, 26282.2999, 25926.0647
+        };
 
-            // 创建图表
-            ChartMultiSeriesRenderData chart = Charts
-                    .ofComboSeries("", dates)
-                    .addLineSeries("收盘价(不复权)", closePrices)
-                    .addBarSeries("成交量(万股)", volumes)
-                    .addBarSeries("成交金额(万元)", turnover)
-                    .create();
+        // 创建图表
+        ChartMultiSeriesRenderData chart = Charts
+                .ofComboSeries("", dates)
+                .addLineSeries("收盘价(不复权)", closePrices)
+                .addBarSeries("成交量(万股)", volumes)
+                .addBarSeries("成交金额(万元)", turnover)
+                .create();
 
-            return  chart;
+        return chart;
     }
 
     public static byte[] createCover(String coverPath) {
@@ -242,93 +269,6 @@ public class MarkDownToWord {
         }
     }
 
-    /**
-     * 合并封面、正文、尾页
-     *
-     * @param coverBytes 封面
-     * @param bodyBytes  正文
-     * @param footerText 尾页文字
-     */
-    public static byte[] mergeWordWithCoverAndFooter(byte[] coverBytes, byte[] bodyBytes, String footerText) {
-        try {
-            // 1. 加载封面文档
-            WordprocessingMLPackage coverPackage;
-            try (InputStream in = new ByteArrayInputStream(coverBytes)) {
-                coverPackage = WordprocessingMLPackage.load(in);
-            }
-
-            // 2. 加载正文文档
-            WordprocessingMLPackage bodyPackage;
-            try (InputStream in = new ByteArrayInputStream(bodyBytes)) {
-                bodyPackage = WordprocessingMLPackage.load(in);
-            }
-
-            MainDocumentPart coverMainPart = coverPackage.getMainDocumentPart();
-            MainDocumentPart bodyMainPart = bodyPackage.getMainDocumentPart();
-
-            // 3. 拷贝正文样式到封面文档
-            StyleDefinitionsPart bodyStyles = bodyMainPart.getStyleDefinitionsPart();
-            StyleDefinitionsPart coverStyles = coverMainPart.getStyleDefinitionsPart();
-            if (bodyStyles != null && coverStyles != null) {
-                coverStyles.getContents().getStyle().addAll(bodyStyles.getContents().getStyle());
-            }
-
-            // 4. 拷贝正文的编号定义 (防止圆点丢失)
-            NumberingDefinitionsPart bodyNumbering = bodyMainPart.getNumberingDefinitionsPart();
-            if (bodyNumbering != null) {
-                NumberingDefinitionsPart coverNumbering = coverMainPart.getNumberingDefinitionsPart();
-                if (coverNumbering == null) {
-                    coverNumbering = new NumberingDefinitionsPart();
-                    coverMainPart.addTargetPart(coverNumbering);
-                }
-
-                // 将正文的 numbering.xml 合并到封面
-                org.docx4j.wml.Numbering bodyNum = bodyNumbering.getContents();
-                if (bodyNum != null && bodyNum.getAbstractNum() != null) {
-                    if (coverNumbering.getContents() == null) {
-                        coverNumbering.setJaxbElement(Context.getWmlObjectFactory().createNumbering());
-                    }
-                    org.docx4j.wml.Numbering coverNum = coverNumbering.getContents();
-                    coverNum.getAbstractNum().addAll(bodyNum.getAbstractNum());
-                    coverNum.getNum().addAll(bodyNum.getNum());
-                }
-            }
-
-            // 5. 封面后分页
-            coverMainPart.getContent().add(createPageBreak());
-
-            // 6. 合并正文内容
-            List<Object> bodyContent = bodyMainPart.getContent();
-            coverMainPart.getContent().addAll(bodyContent);
-
-            // 7. 添加尾页
-            coverMainPart.getContent().add(createPageBreak());
-            coverMainPart.addParagraphOfText(footerText);
-
-            // 8. 输出 byte[]
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            coverPackage.save(outputStream);
-            return outputStream.toByteArray();
-
-        } catch (Exception e) {
-            log.warn("mergeWordWithCoverAndFooter-合并失败，失败原因：", e);
-            return null;
-        }
-    }
-
-    /**
-     * 创建分页符
-     */
-    private static P createPageBreak() {
-        ObjectFactory factory = Context.getWmlObjectFactory();
-        P p = factory.createP();
-        R run = factory.createR();
-        Br br = new Br();
-        br.setType(STBrType.PAGE);
-        run.getContent().add(br);
-        p.getContent().add(run);
-        return p;
-    }
 
     public static byte[] setParagraphsStyle(byte[] bytes) {
         try (InputStream in = new ByteArrayInputStream(bytes)) {
@@ -347,6 +287,19 @@ public class MarkDownToWord {
                     p.setPPr(pPr);
                 }
 
+                // 获取段落的样式
+                if (pPr.getPStyle() != null) {
+                    String style = pPr.getPStyle().getVal();
+
+                    // 如果是 Heading1 或 Heading2 样式
+                    if ("Heading1".equals(style) || "Heading2".equals(style)) {
+                        // 确保没有编号样式
+                        if (pPr.getNumPr() != null) {
+                            pPr.setNumPr(null); // 移除编号
+                        }
+                    }
+                }
+
                 if (pPr.getNumPr() != null) { // 带编号段落
                     PPrBase.Ind ind = pPr.getInd();
                     if (ind == null) {
@@ -354,7 +307,7 @@ public class MarkDownToWord {
                         pPr.setInd(ind);
                     }
 
-                    ind.setLeft(BigInteger.valueOf(567));
+                    ind.setLeft(BigInteger.valueOf(500));
                 }
             }
 
@@ -368,121 +321,6 @@ public class MarkDownToWord {
         }
     }
 
-    public static byte[] setTableStyle(byte[] bytes) {
-        try (InputStream in = new ByteArrayInputStream(bytes)) {
-            WordprocessingMLPackage wordMLPackage = WordprocessingMLPackage.load(in);
-            MainDocumentPart mainPart = wordMLPackage.getMainDocumentPart();
-            ObjectFactory factory = Context.getWmlObjectFactory();
-
-            // 获取所有表格
-            List<Object> tables = mainPart.getJAXBNodesViaXPath("//w:tbl", true);
-            for (Object tblObj : tables) {
-                Tbl tbl = (Tbl) ((JAXBElement<?>) tblObj).getValue();
-
-                // 表格属性
-                TblPr tblPr = Optional.ofNullable(tbl.getTblPr()).orElseGet(factory::createTblPr);
-                tbl.setTblPr(tblPr);
-
-                tblPr.setTblW(null);
-                // 设置表格布局为自动（允许列宽根据内容自动调整）
-                CTTblLayoutType layoutType = factory.createCTTblLayoutType();
-                layoutType.setType(STTblLayoutType.AUTOFIT);
-                tblPr.setTblLayout(layoutType);
-
-                // 单元格间距（0表示无缝隙）
-                TblWidth cellSpacing = factory.createTblWidth();
-                cellSpacing.setType("dxa");
-                cellSpacing.setW(BigInteger.ZERO);
-                tblPr.setTblCellSpacing(cellSpacing);
-
-                // 边框
-                CTBorder border = createBorder(factory);
-                TblBorders tblBorders = factory.createTblBorders();
-                tblBorders.setTop(border);
-                tblBorders.setBottom(border);
-                tblBorders.setLeft(border);
-                tblBorders.setRight(border);
-                tblBorders.setInsideH(border);
-                tblBorders.setInsideV(border);
-                tblPr.setTblBorders(tblBorders);
-
-                // 表格宽度与居中
-                TblWidth width = factory.createTblWidth();
-                width.setType("pct");
-                width.setW(BigInteger.valueOf(5000)); // 50%
-                tblPr.setTblW(width);
-                tblPr.setJc(createJc(factory, JcEnumeration.CENTER));
-
-                // 遍历行
-                for (int i = 0; i < tbl.getContent().size(); i++) {
-                    Tr row = (Tr) XmlUtils.unwrap(tbl.getContent().get(i));
-                    if (row == null) continue;
-
-                    for (int j = 0; j < row.getContent().size(); j++) {
-                        Tc cell = (Tc) XmlUtils.unwrap(row.getContent().get(j));
-                        if (cell == null) continue;
-
-                        TcPr tcPr = Optional.ofNullable(cell.getTcPr()).orElseGet(factory::createTcPr);
-                        cell.setTcPr(tcPr);
-
-                        tcPr.setTcW(null);
-
-                        // 段落居中与间距
-                        for (Object pObj : cell.getContent()) {
-                            P p = (P) XmlUtils.unwrap(pObj);
-                            if (p == null) continue;
-
-                            PPr pPr = Optional.ofNullable(p.getPPr()).orElseGet(factory::createPPr);
-                            p.setPPr(pPr);
-                            pPr.setJc(createJc(factory, JcEnumeration.CENTER));
-                            pPr.setSpacing(createSpacing(factory, 240, 120, 120));
-                        }
-
-                        // 首行底色
-                        if (i == 0) {
-                            CTShd shd = factory.createCTShd();
-                            shd.setFill("95b3d7");
-                            tcPr.setShd(shd);
-                        }
-
-                        // 首行首列加粗
-                        if (i == 0 || j == 0) {
-                            boldCellText(factory, cell);
-                        }
-                    }
-                }
-            }
-
-            try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                wordMLPackage.save(out);
-                return out.toByteArray();
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * 创建统一边框
-     */
-    private static CTBorder createBorder(ObjectFactory factory) {
-        CTBorder border = factory.createCTBorder();
-        border.setVal(STBorder.SINGLE);
-        border.setSz(BigInteger.valueOf(1));  // 1/8 pt 单位，1 ≈ 0.125pt
-        border.setSpace(BigInteger.ZERO);
-        border.setColor("#808080");
-        return border;
-    }
-
-    /**
-     * 创建居中方式
-     */
-    private static Jc createJc(ObjectFactory factory, JcEnumeration val) {
-        Jc jc = factory.createJc();
-        jc.setVal(val);
-        return jc;
-    }
-
     /**
      * 创建段落间距
      */
@@ -492,25 +330,6 @@ public class MarkDownToWord {
         spacing.setBefore(BigInteger.valueOf(before));
         spacing.setAfter(BigInteger.valueOf(after));
         return spacing;
-    }
-
-    /**
-     * 设置单元格内文字加粗
-     */
-    private static void boldCellText(ObjectFactory factory, Tc cell) {
-        for (Object pObj : cell.getContent()) {
-            P p = (P) XmlUtils.unwrap(pObj);
-            if (p == null) continue;
-
-            for (Object rObj : p.getContent()) {
-                R r = (R) XmlUtils.unwrap(rObj);
-                if (r == null) continue;
-
-                RPr rPr = Optional.ofNullable(r.getRPr()).orElseGet(factory::createRPr);
-                r.setRPr(rPr);
-                rPr.setB(factory.createBooleanDefaultTrue());
-            }
-        }
     }
 
     public static byte[] applyTextStyles(byte[] wordBytes) {
