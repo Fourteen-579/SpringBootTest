@@ -7,6 +7,10 @@ import java.awt.*;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author Fourteen_ksz
@@ -219,6 +223,84 @@ public class WordMerge {
             }
         } catch (Exception e) {
             throw new RuntimeException("设置表格样式失败", e);
+        }
+    }
+
+    // 替换文档中的指定格式文字为上标样式的方法
+    public static byte[] replaceTextWithSuperscript(byte[] text) {
+        getLicense();
+        try {
+            // 从字节数组加载 Word 文档
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(text);
+            Document doc;
+            doc = new Document(inputStream);
+
+            // 创建一个 Map 来保存原始文本和对应的编号
+            Map<String, Integer> replacementMap = new LinkedHashMap<>();
+
+            // 正则表达式，用于匹配类似 【#4303865#】 这样的格式
+            String regex = "【#(.*?)#】";
+            Pattern pattern = Pattern.compile(regex);
+            Matcher matcher = pattern.matcher(doc.getText());
+
+            int counter = 1; // 用来生成替换文本的编号
+
+            // 遍历所有匹配到的内容，并将其替换为上标
+            while (matcher.find()) {
+                int index = counter;
+                String originalText = matcher.group(0); // 获取完整匹配文本
+                String number = matcher.group(1); // 获取编号部分（例如 4303865）
+                if (replacementMap.containsKey(number)) {
+                    index = replacementMap.get(number);
+                } else {
+                    replacementMap.put(number, index);
+                    counter++; // 编号自增
+                }
+
+                // 将原文本替换为 [编号] 格式
+                String replacement = "[" + index + "]";
+
+                // 遍历文档中的所有 RUN 节点
+                for (Node node : (Iterable<Node>) doc.getChildNodes(NodeType.RUN, true)) {
+                    Run run = (Run) node;
+
+                    // 如果 RUN 的文本中包含需要替换的部分
+                    if (run.getText().contains(originalText)) {
+                        String runText = run.getText();
+                        int startIndex = runText.indexOf(originalText);
+                        int endIndex = startIndex + originalText.length();
+
+                        Run leftRun = (Run) run.deepClone(true);
+                        leftRun.setText(runText.substring(0, startIndex));
+
+                        Run centerRun = (Run) run.deepClone(true);
+                        centerRun.setText(replacement);
+                        centerRun.getFont().setSuperscript(true);
+
+                        Run rightRun = (Run) run.deepClone(true);
+                        rightRun.setText(runText.substring(endIndex));
+
+                        // 将三个 Run 节点插入文档中
+                        run.getParentNode().insertBefore(leftRun, run);
+                        run.getParentNode().insertBefore(centerRun, run);
+                        run.getParentNode().insertBefore(rightRun, run);
+
+                        // 删除原始 Run
+                        run.remove();
+                    }
+                }
+            }
+
+            // 将修改后的文档保存到字节数组中
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            doc.save(outputStream, SaveFormat.DOCX);
+            byte[] modifiedText = outputStream.toByteArray();
+
+            // 返回修改后的字节数组
+            return modifiedText;
+        } catch (Exception e) {
+            log.warn("替换文字为上标样式失败：", e);
+            return null;
         }
     }
 }
