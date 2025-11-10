@@ -163,7 +163,6 @@ public class WordMerge {
     public static byte[] setTableStyle(byte[] bytes) {
         try (InputStream in = new ByteArrayInputStream(bytes)) {
             Document doc = new Document(in);
-            DocumentBuilder builder = new DocumentBuilder(doc);
 
             // 遍历所有表格
             for (Table table : (Iterable<Table>) doc.getChildNodes(NodeType.TABLE, true)) {
@@ -174,16 +173,17 @@ public class WordMerge {
                 table.setAllowAutoFit(true);
 
                 // 设置表格单元格之间的间距为0
-                table.setCellSpacing(0);
+                table.setCellSpacing(-1);
 
                 // 设置边框样式（等价于 docx4j 中的 CTBorder）
+                // 1. 禁用内部边框重复绘制
                 table.setBorders(LineStyle.SINGLE, 0.75, new Color(128, 128, 128));
 
-                // 表格宽度为页面宽度的 50%
+                // 表格宽度为页面宽度
                 double pageWidth = doc.getFirstSection().getPageSetup().getPageWidth()
                         - doc.getFirstSection().getPageSetup().getLeftMargin()
                         - doc.getFirstSection().getPageSetup().getRightMargin();
-                table.setPreferredWidth(PreferredWidth.fromPoints(pageWidth * 0.9));
+                table.setPreferredWidth(PreferredWidth.fromPoints(pageWidth));
 
                 // 遍历行
                 for (int i = 0; i < table.getRows().getCount(); i++) {
@@ -191,12 +191,12 @@ public class WordMerge {
 
                     for (int j = 0; j < row.getCells().getCount(); j++) {
                         Cell cell = row.getCells().get(j);
-
+                        cell.getCellFormat().setVerticalAlignment(CellVerticalAlignment.CENTER);
                         // 段落居中，行距设置
                         for (Paragraph para : cell.getParagraphs()) {
                             para.getParagraphFormat().setAlignment(ParagraphAlignment.CENTER);
-                            para.getParagraphFormat().setSpaceBefore(6);
-                            para.getParagraphFormat().setSpaceAfter(6);
+                            para.getParagraphFormat().setSpaceBefore(5);
+                            para.getParagraphFormat().setSpaceAfter(5);
                         }
 
                         // 设置首行底色

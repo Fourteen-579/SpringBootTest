@@ -75,14 +75,13 @@ public class MarkDownToWord {
             log.warn("createText-转换失败");
             return;
         }
-        Files.write(Paths.get("C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\test_text.docx"), text);
 
+        //设置上标
         text = WordMerge.replaceTextWithSuperscript(text);
         if (ObjectUtil.isEmpty(text)) {
             log.warn("replaceTextWithSuperscript-转换失败");
             return;
         }
-        Files.write(Paths.get("C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\test_superscript.docx"), text);
 
         //设置段落格式
         text = setParagraphsStyle(text);
