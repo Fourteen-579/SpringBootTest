@@ -9,6 +9,9 @@ import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.data.MutableDataSet;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.docx4j.XmlUtils;
 import org.docx4j.convert.in.xhtml.FormattingOption;
@@ -77,7 +80,8 @@ public class MarkDownToWord {
         }
 
         //设置上标
-        text = WordMerge.replaceTextWithSuperscript(text);
+        LinkedHashMap<String, Reference> testReferences = createTestReferences();
+        text = WordMerge.replaceTextWithSuperscript(text,testReferences);
         if (ObjectUtil.isEmpty(text)) {
             log.warn("replaceTextWithSuperscript-转换失败");
             return;
@@ -94,7 +98,7 @@ public class MarkDownToWord {
         }
 
         //合并封面 正文 参考文献
-        byte[] bytes = WordMerge.mergeWordWithCoverAndFooter(cover, text, END_TEXT);
+        byte[] bytes = WordMerge.mergeWordWithCoverAndFooter(cover, text, testReferences);
         if (ObjectUtil.isEmpty(bytes)) {
             log.warn("mergeWordWithCoverAndFooter-转换失败");
             return;
@@ -110,6 +114,30 @@ public class MarkDownToWord {
         } else {
             log.warn("mergeWordWithCoverAndFooter-合并失败");
         }
+    }
+
+    /**
+     * 创建测试数据
+     */
+    public static LinkedHashMap<String, Reference> createTestReferences() {
+        LinkedHashMap<String, Reference> map = new LinkedHashMap<>();
+        map.put("4303865", new Reference("4303865", 1, "决胜“十四五” 打好收官战|“富矿精开”“点石成金”——贵州用好资源优势打造发展新动能", "新闻", "2025-09-16", "新华社", "https://news.example.com/article1"));
+        map.put("NW202509153514054281", new Reference("NW202509153514054281", 2, "工程机械行业稳步迈入新一轮增长周期", "行业", "2025-09-17", "人民网", "https://news.example.com/article2"));
+        map.put("NW202509153514054632", new Reference("NW202509153514054632", 3, "国家统计局：8月份规上工业原煤产量3.9亿吨 同比下降3.2%", "数据", "2025-09-15", "国家统计局", null));
+        return map;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Reference {
+        private String id;
+        private Integer index;
+        private String title;
+        private String infoType;
+        private String date;
+        private String source;
+        private String url;
     }
 
     public static byte[] createChart(String chartPath) {
@@ -475,6 +503,9 @@ public class MarkDownToWord {
                 RPr rPr = Optional.ofNullable(((R) runObj).getRPr()).orElseGet(factory::createRPr);
                 ((R) runObj).setRPr(rPr);
                 rPr.getSz().setVal(BigInteger.valueOf(fontSize));
+                Color color = new Color();
+                color.setVal("000000");
+                rPr.setColor(color);
             }
         }
     }

@@ -8,7 +8,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -101,14 +100,16 @@ public class WordMerge {
     }
 
     /**
-     * 在封面文档的最后一个 Section 末尾添加一个尾页文字，并在正文文档的最后一个 Section 末尾添加两个换行
+     * 合并封面与正文文档，并在末尾追加“参考文献”部分（含超链接）
      *
      * @param coverBytes 封面文档字节数组
      * @param bodyBytes  正文文档字节数组
-     * @param footerText 尾页文字
+     * @param references 参考文献列表（按顺序）
      * @return 合并后的 Word 文档字节数组
      */
-    public static byte[] mergeWordWithCoverAndFooter(byte[] coverBytes, byte[] bodyBytes, String footerText) {
+    public static byte[] mergeWordWithCoverAndFooter(byte[] coverBytes,
+                                                     byte[] bodyBytes,
+                                                     LinkedHashMap<String, MarkDownToWord.Reference> references) {
         getLicense();
         try {
             // 加载封面文档
@@ -123,32 +124,62 @@ public class WordMerge {
                 bodyDoc = new Document(in);
             }
 
-            // 使用 NodeImporter 保留源格式
+            // 导入正文内容到封面文档
             NodeImporter importer = new NodeImporter(bodyDoc, coverDoc, ImportFormatMode.KEEP_SOURCE_FORMATTING);
-
-            // 将正文内容导入封面文档
             for (Section section : bodyDoc.getSections()) {
                 Section importedSection = (Section) importer.importNode(section, true);
                 coverDoc.appendChild(importedSection);
             }
 
-            // 获取最终的最后一个 Section
+            // 获取合并后的最后一个 Section
             Section lastSection = coverDoc.getLastSection();
+            Body body = lastSection.getBody();
 
-            // 在正文后添加两个换行
-            Paragraph lineBreaks = new Paragraph(coverDoc);
-            Run lineRun = new Run(coverDoc, "\n\n");
-            lineBreaks.appendChild(lineRun);
-            lastSection.getBody().appendChild(lineBreaks);
+            // 添加两个换行
+            body.appendChild(new Paragraph(coverDoc));
+            body.appendChild(new Paragraph(coverDoc));
 
-            // 添加尾页文字（不分页）
-            Paragraph footerPara = new Paragraph(coverDoc);
-            Run footerRun = new Run(coverDoc, footerText);
-            footerRun.getFont().setSize(12);
-            footerPara.appendChild(footerRun);
-            lastSection.getBody().appendChild(footerPara);
+            // 创建 DocumentBuilder 方便写入
+            DocumentBuilder builder = new DocumentBuilder(coverDoc);
+            builder.moveToDocumentEnd();
 
-            // 导出为 byte[]
+            // 添加标题“参考文献”，样式设为 Heading1
+            builder.getParagraphFormat().setStyleIdentifier(StyleIdentifier.HEADING_1);
+            builder.writeln("参考文献");
+
+            // 换回正文样式
+            builder.getParagraphFormat().setStyleIdentifier(StyleIdentifier.NORMAL);
+
+            // 添加参考文献内容
+            if (references != null && !references.isEmpty()) {
+                for (MarkDownToWord.Reference ref : references.values()) {
+                    // 格式示例：[1] 标题 | 来源 | 日期
+                    String prefix = "[" + ref.getIndex() + "] ";
+                    builder.write(prefix);
+
+                    // 如果有链接，用超链接写入标题
+                    if (ref.getUrl() != null && !ref.getUrl().isEmpty()) {
+                        builder.insertHyperlink(ref.getTitle(), ref.getUrl(), false);
+                    } else {
+                        builder.write(ref.getTitle());
+                    }
+
+                    // 追加来源与日期信息
+                    String tail = "";
+                    if (ref.getSource() != null && !ref.getSource().isEmpty()) {
+                        tail += " | " + ref.getSource();
+                    }
+                    if (ref.getDate() != null && !ref.getDate().isEmpty()) {
+                        tail += " | " + ref.getDate();
+                    }
+
+                    builder.writeln(tail);
+                }
+            } else {
+                builder.writeln("（无参考文献）");
+            }
+
+            // 保存为字节数组
             try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
                 coverDoc.save(out, SaveFormat.DOCX);
                 return out.toByteArray();
@@ -227,7 +258,7 @@ public class WordMerge {
     }
 
     // 替换文档中的指定格式文字为上标样式的方法
-    public static byte[] replaceTextWithSuperscript(byte[] text) {
+    public static byte[] replaceTextWithSuperscript(byte[] text, LinkedHashMap<String, MarkDownToWord.Reference> testReferences) {
         getLicense();
         try {
             // 从字节数组加载 Word 文档
@@ -235,26 +266,19 @@ public class WordMerge {
             Document doc;
             doc = new Document(inputStream);
 
-            // 创建一个 Map 来保存原始文本和对应的编号
-            Map<String, Integer> replacementMap = new LinkedHashMap<>();
-
             // 正则表达式，用于匹配类似 【#4303865#】 这样的格式
             String regex = "【#(.*?)#】";
             Pattern pattern = Pattern.compile(regex);
             Matcher matcher = pattern.matcher(doc.getText());
 
-            int counter = 1; // 用来生成替换文本的编号
-
             // 遍历所有匹配到的内容，并将其替换为上标
             while (matcher.find()) {
-                int index = counter;
                 String originalText = matcher.group(0); // 获取完整匹配文本
                 String number = matcher.group(1); // 获取编号部分（例如 4303865）
-                if (replacementMap.containsKey(number)) {
-                    index = replacementMap.get(number);
-                } else {
-                    replacementMap.put(number, index);
-                    counter++; // 编号自增
+
+                String index = "";
+                if (testReferences.containsKey(number)) {
+                    index = String.valueOf(testReferences.get(number).getIndex());
                 }
 
                 // 将原文本替换为 [编号] 格式
