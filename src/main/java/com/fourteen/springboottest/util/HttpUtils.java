@@ -112,13 +112,16 @@ public class HttpUtils {
         if (headers != null) {
             headers.forEach(requestBuilder::addHeader);
         }
+
+
         Request request = requestBuilder.build();
         try (Response response = client.newCall(request).execute()) {
             if (response != null && response.code() == 200 && response.body() != null) {
                 result = response.body().string();
             } else {
-                log.error("HttpUtils -> post error, url={}, param={}, header={}, response={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString());
+                log.error("HttpUtils -> post error");
             }
+            log.info("HttpUtils -> post url={}, param={}, header={}, response={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString());
         } catch (Exception e) {
             log.error("HttpUtils -> post error, url={}, json={}, header={}, error={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
         }
