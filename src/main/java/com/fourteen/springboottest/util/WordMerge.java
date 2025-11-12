@@ -204,7 +204,7 @@ public class WordMerge {
                 table.setAllowAutoFit(true);
 
                 // 设置表格单元格之间的间距为0
-                table.setCellSpacing(-1);
+                table.setCellSpacing(-0.1);
 
                 // 设置边框样式（等价于 docx4j 中的 CTBorder）
                 // 1. 禁用内部边框重复绘制
