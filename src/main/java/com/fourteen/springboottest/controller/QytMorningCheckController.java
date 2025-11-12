@@ -8,6 +8,7 @@ import com.fourteen.springboottest.bo.qyt.UserActiveRequest;
 import com.fourteen.springboottest.bo.sw.ServiceLoadResponse;
 import com.fourteen.springboottest.bo.sw.SkywalkingMetricRequest;
 import com.fourteen.springboottest.bo.sw.TimePercentileResponse;
+import com.fourteen.springboottest.client.DongMessageClient;
 import com.fourteen.springboottest.util.HttpUtils;
 import com.fourteen.springboottest.util.ObjectMappers;
 import lombok.RequiredArgsConstructor;
@@ -37,16 +38,17 @@ public class QytMorningCheckController {
 
     private final static DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HHmm");
     private final static DateTimeFormatter DATE_TIME_FORMATTER2 = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private final static String TEMPLATE = "%s企业通系统巡检结果：\n" +
+    private final static String TEMPLATE =
             "1、【正常】接口耗时分布，P90：%sms；P95：%sms；p99：%sms\n" +
-            "2、【正常】接口请求量，总数：%s；最高QPS：%s\n" +
-            "3、【正常】接口返回结果：正常\n" +
-            "4、【正常】应用日志报错查看：正常\n" +
-            "5、【正常】应用服务器资源指标，cpu使用率峰值：{}%%；内存使用率峰值：{}%%；磁盘使用率：{}%%\n" +
-            "6、【正常】定时任务&数仓数据同步任务：正常执行\n" +
-            "7、【正常】日活账号数，企业数：%s；账号数：%s\n" +
-            "晨检人：%s";
+                    "2、【正常】接口请求量，总数：%s；最高QPS：%s\n" +
+                    "3、【正常】接口返回结果：正常\n" +
+                    "4、【正常】应用日志报错查看：正常\n" +
+                    "5、【正常】应用服务器资源指标，cpu使用率峰值：{}%%；内存使用率峰值：{}%%；磁盘使用率：{}%%\n" +
+                    "6、【正常】定时任务&数仓数据同步任务：正常执行\n" +
+                    "7、【正常】日活账号数，企业数：%s；账号数：%s\n" +
+                    "晨检人：%s";
 
+    private final DongMessageClient dongMessageClient;
 
     @Resource
     private HttpUtils httpUtils;
@@ -68,7 +70,7 @@ public class QytMorningCheckController {
         int p90Ms = (int) p90.getValues().getValues().get(0).getValue();
 
         //获取接口请求量
-        ServiceLoadResponse serviceLoad = getServiceLoad(session, checkDateStr+" 12", checkDateStr+" 18");
+        ServiceLoadResponse serviceLoad = getServiceLoad(session, checkDateStr + " 12", checkDateStr + " 18");
         IntSummaryStatistics statistics = serviceLoad.getData().getService_cpm0().getValues().getValues().stream()
                 .map(ServiceLoadResponse.ValueItem::getValue)
                 .mapToInt(Double::intValue)
@@ -81,11 +83,15 @@ public class QytMorningCheckController {
         Integer entCount = dayActiveList.getEntCount();
         Integer userCount = dayActiveList.getUserCount();
 
-        return String.format(TEMPLATE, checkDateStr, p90Ms, p95Ms, p99Ms, totalCount, maxQps, entCount, userCount, checkUser);
+        String result = String.format(TEMPLATE, p90Ms, p95Ms, p99Ms, totalCount, maxQps, entCount, userCount, checkUser);
+        log.info(result);
+        dongMessageClient.sendDongMessage(checkDateStr+"企业通系统巡检结果", result, "7616168");
+
+        return "success";
     }
 
     private DayActiveListResp getDayActiveList(String start, String end) {
-        String url = "https://qiyetong.eastmoney.com/ent_backend/activeDataBoard/dayActive/list";
+        String url = "http://10.195.23.72:8808/activeDataBoard/dayActive/list";
         UserActiveRequest request = new UserActiveRequest();
         request.setBeginTime(start);
         request.setEndTime(end);
