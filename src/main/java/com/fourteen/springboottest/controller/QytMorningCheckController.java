@@ -44,8 +44,8 @@ public class QytMorningCheckController {
     private final static ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
     private final static DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private final static DateTimeFormatter DATE_TIME_FORMATTER2 = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private final static String TEMPLATE =
-            "1、【正常】接口耗时分布，P90：%sms；P95：%sms；p99：%sms\n" +
+    private final static String TEMPLATE = "%s企业通系统巡检结果:\n" +
+                    "1、【正常】接口耗时分布，P90：%sms；P95：%sms；p99：%sms\n" +
                     "2、【正常】接口请求量，总数：%s；最高QPS：%s\n" +
                     "3、【正常】接口返回结果：正常\n" +
                     "4、【正常】应用日志报错查看：正常\n" +
@@ -157,9 +157,9 @@ public class QytMorningCheckController {
             String m = memoryUseMax == null ? "0" : new BigDecimal(memoryUseMax).setScale(2, RoundingMode.HALF_UP).toPlainString();
             String d = diskUseMax == null ? "0" : new BigDecimal(diskUseMax).setScale(2, RoundingMode.HALF_UP).toPlainString();
 
-            String result = String.format(TEMPLATE, p90Ms, p95Ms, p99Ms, total, qps, c, m, d, entCount, userCount, checker);
-            dongMessageClient.sendDongMessage(checkDateStr + "企业通系统巡检结果", result, "7616168");
-            return "success";
+            String result = String.format(TEMPLATE, checkDateStr, p90Ms, p95Ms, p99Ms, total, qps, c, m, d, entCount, userCount, checker);
+//            dongMessageClient.sendDongMessage(checkDateStr + "企业通系统巡检结果", result, "7616168");
+            return result;
         } catch (Exception e) {
             log.error("企业通系统巡检异常:", e);
             return "巡检异常，请查看日志";
