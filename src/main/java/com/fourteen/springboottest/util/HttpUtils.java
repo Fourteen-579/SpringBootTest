@@ -106,7 +106,7 @@ public class HttpUtils {
     public String post(String url, String jsonParam, Map<String, String> headers) {
         String result = null;
         //请求参数
-        RequestBody requestBody = FormBody.create(MediaType.parse(JSON_TYPE), jsonParam);
+        RequestBody requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), jsonParam);
         Request.Builder requestBuilder = new Request.Builder().url(url).post(requestBody);
         //添加请求头
         if (headers != null) {

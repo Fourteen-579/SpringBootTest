@@ -97,13 +97,13 @@ public class QytMorningCheckController {
 
         String result = String.format(TEMPLATE, p90Ms, p95Ms, p99Ms, total, qps, entCount, userCount, checkUser);
         log.info(result);
-//        dongMessageClient.sendDongMessage(checkDateStr + "企业通系统巡检结果", result, "7616168");
+        dongMessageClient.sendDongMessage(checkDateStr + "企业通系统巡检结果", result, "7616168");
 
         return "success";
     }
 
     private DayActiveListResp getDayActiveList(String start, String end) {
-        String url = "http://qiyetong.eastmoney.com/ent_backend/activeDataBoard/dayActive/list";
+        String url = "http://10.195.23.73:8808/activeDataBoard/dayActive/list";
         UserActiveRequest request = new UserActiveRequest();
         request.setBeginTime(start);
         request.setEndTime(end);
