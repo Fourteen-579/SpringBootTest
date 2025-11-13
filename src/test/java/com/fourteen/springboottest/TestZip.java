@@ -1,7 +1,6 @@
 package com.fourteen.springboottest;
 
 import org.apache.commons.codec.binary.Base64;
-import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import javax.crypto.Cipher;
@@ -84,7 +83,7 @@ public class TestZip {
         return cipher.doFinal(encryptBytes);
     }
 
-//    @Test
+    //    @Test
     void testZip() throws IOException {
         File file = new File("C:\\Users\\Administrator\\Desktop\\test.zip");
         byte[] bytes = readZipFileToBytes(file);

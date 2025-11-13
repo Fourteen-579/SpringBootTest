@@ -4,7 +4,6 @@ import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Base64;
 

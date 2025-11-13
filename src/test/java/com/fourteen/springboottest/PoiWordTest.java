@@ -21,7 +21,7 @@ class PoiWordTest {
 
     private static final String OUTPUT_PATH = "C:\\Users\\Administrator\\Desktop\\Test.docx";
 
-    @Test
+//    @Test
     void contextLoads() {
         String path = "C:\\Users\\Administrator\\Desktop\\CertificateLetterTemplate.docx";
         try {
