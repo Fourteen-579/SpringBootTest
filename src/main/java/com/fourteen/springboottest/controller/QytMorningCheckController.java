@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -43,14 +44,17 @@ public class QytMorningCheckController {
     private final static ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
     private final static DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private final static DateTimeFormatter DATE_TIME_FORMATTER2 = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private final static String TEMPLATE = "%s企业通系统巡检结果：\n" +
+    private final static String TEMPLATE =
             "1、【正常】接口耗时分布，P90：%sms；P95：%sms；p99：%sms\n" +
-            "2、【正常】接口请求量，总数：%s；最高QPS：%s\n" +
-            "3、【正常】接口返回结果：正常\n" +
-            "4、【正常】应用日志报错查看：正常\n" +
-            "5、【正常】应用服务器资源指标，cpu使用率峰值：%s%%；内存使用率峰值：%s%%；磁盘使用率：%s%%\n" +
-            "6、【正常】定时任务&数仓数据同步任务：正常执行\n" +
-            "7、【正常】日活账号数，企业数：%s；账号数：%s";
+                    "2、【正常】接口请求量，总数：%s；最高QPS：%s\n" +
+                    "3、【正常】接口返回结果：正常\n" +
+                    "4、【正常】应用日志报错查看：正常\n" +
+                    "5、【正常】应用服务器资源指标，cpu使用率峰值：%s%%；内存使用率峰值：%s%%；磁盘使用率：%s%%\n" +
+                    "6、【正常】定时任务&数仓数据同步任务：正常执行\n" +
+                    "7、【正常】日活账号数，企业数：%s；账号数：%s\n" +
+                    "晨检人：%s";
+
+    private final static List<String> NAME_LIST = Arrays.asList("陈万旺", "马俊聪", "冉港生", "库淑贞", "蒋金杭");
 
     private final DongMessageClient dongMessageClient;
 
@@ -59,10 +63,47 @@ public class QytMorningCheckController {
 
     @GetMapping("/morning-check")
     public String getQytMorningCheck(@RequestParam("skSession") String skSession,
-                                     @RequestParam("checkDate") String checkDateStr,
                                      @RequestParam("zabbixSession") String auth) {
         try {
-            LocalDate checkDate = LocalDate.parse(checkDateStr, DATE_TIME_FORMATTER2);
+            String checker;
+            LocalDate today = LocalDate.now();
+            DayOfWeek dayOfWeek = today.getDayOfWeek();
+            LocalDate checkDate;
+
+            switch (dayOfWeek) {
+                case MONDAY:    // 周一 -> 上周五
+                    checkDate = today.minusDays(3);
+                    checker = NAME_LIST.get(0);
+                    break;
+                case TUESDAY:   // 周二 -> 周一
+                    checkDate = today.minusDays(1);
+                    checker = NAME_LIST.get(1);
+                    break;
+                case WEDNESDAY:// 周三 -> 周二
+                    checkDate = today.minusDays(1);
+                    checker = NAME_LIST.get(2);
+                    break;
+                case THURSDAY:  // 周四 -> 周三
+                    checkDate = today.minusDays(1);
+                    checker = NAME_LIST.get(3);
+                    break;
+                case FRIDAY:    // 周五 -> 周四
+                    checkDate = today.minusDays(1);
+                    checker = NAME_LIST.get(4);
+                    break;
+                case SATURDAY:  // 周六 -> 周五
+                    checkDate = today.minusDays(1);
+                    checker = NAME_LIST.get(0);
+                    break;
+                case SUNDAY:    // 周日 -> 周五
+                    checkDate = today.minusDays(2);
+                    checker = NAME_LIST.get(0);
+                    break;
+                default:
+                    return "巡检日期异常";
+            }
+
+            String checkDateStr = checkDate.format(DATE_TIME_FORMATTER2);
 
             // 获取接口耗时分布
             Integer p99Ms = null;
@@ -116,7 +157,9 @@ public class QytMorningCheckController {
             String m = memoryUseMax == null ? "0" : new BigDecimal(memoryUseMax).setScale(2, RoundingMode.HALF_UP).toPlainString();
             String d = diskUseMax == null ? "0" : new BigDecimal(diskUseMax).setScale(2, RoundingMode.HALF_UP).toPlainString();
 
-            return String.format(TEMPLATE, checkDateStr, p90Ms, p95Ms, p99Ms, total, qps, c, m, d, entCount, userCount);
+            String result = String.format(TEMPLATE, p90Ms, p95Ms, p99Ms, total, qps, c, m, d, entCount, userCount, checker);
+            dongMessageClient.sendDongMessage(checkDateStr + "企业通系统巡检结果", result, "7616168");
+            return "success";
         } catch (Exception e) {
             log.error("企业通系统巡检异常:", e);
             return "巡检异常，请查看日志";
