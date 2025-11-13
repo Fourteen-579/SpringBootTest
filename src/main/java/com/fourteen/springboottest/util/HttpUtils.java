@@ -121,7 +121,7 @@ public class HttpUtils {
             } else {
                 log.error("HttpUtils -> post error");
             }
-            log.info("HttpUtils -> post url={}, param={}, header={}, response={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString());
+            log.info("HttpUtils -> post url={}, param={}, header={}, response={},result={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), response == null ? "" : response.toString(), result);
         } catch (Exception e) {
             log.error("HttpUtils -> post error, url={}, json={}, header={}, error={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
         }

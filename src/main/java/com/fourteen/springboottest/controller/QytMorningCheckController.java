@@ -70,28 +70,40 @@ public class QytMorningCheckController {
         int p90Ms = (int) p90.getValues().getValues().get(0).getValue();
 
         //获取接口请求量
-        ServiceLoadResponse serviceLoad = getServiceLoad(session, checkDateStr + " 12", checkDateStr + " 18");
+        //QPS 时间段内均值 除以 60 单位为秒
+        ServiceLoadResponse serviceLoad = getServiceLoad(session, checkDateStr + " 1200", checkDateStr + " 1700", "MINUTE");
         IntSummaryStatistics statistics = serviceLoad.getData().getService_cpm0().getValues().getValues().stream()
                 .map(ServiceLoadResponse.ValueItem::getValue)
                 .mapToInt(Double::intValue)
                 .summaryStatistics();
-        int totalCount = (int) statistics.getSum();
-        int maxQps = statistics.getMax();
+        int qps = (int) statistics.getAverage() / 60;
+
+        //接口请求总量 每天均值*60*9
+        serviceLoad = getServiceLoad(session, checkDateStr, checkDateStr, "DAY");
+        statistics = serviceLoad.getData().getService_cpm0().getValues().getValues().stream()
+                .map(ServiceLoadResponse.ValueItem::getValue)
+                .mapToInt(Double::intValue)
+                .summaryStatistics();
+        int total = (int) statistics.getAverage() * 60 * 9;
 
         //获取日活账号数
         DayActiveListResp dayActiveList = getDayActiveList(checkDateStr, checkDateStr);
-        Integer entCount = dayActiveList.getEntCount();
-        Integer userCount = dayActiveList.getUserCount();
+        Integer entCount = null;
+        Integer userCount = null;
+        if(dayActiveList != null){
+            entCount = dayActiveList.getEntCount();
+            userCount = dayActiveList.getUserCount();
+        }
 
-        String result = String.format(TEMPLATE, p90Ms, p95Ms, p99Ms, totalCount, maxQps, entCount, userCount, checkUser);
+        String result = String.format(TEMPLATE, p90Ms, p95Ms, p99Ms, total, qps, entCount, userCount, checkUser);
         log.info(result);
-        dongMessageClient.sendDongMessage(checkDateStr+"企业通系统巡检结果", result, "7616168");
+//        dongMessageClient.sendDongMessage(checkDateStr + "企业通系统巡检结果", result, "7616168");
 
         return "success";
     }
 
     private DayActiveListResp getDayActiveList(String start, String end) {
-        String url = "http://10.195.23.72:8808/activeDataBoard/dayActive/list";
+        String url = "http://qiyetong.eastmoney.com/ent_backend/activeDataBoard/dayActive/list";
         UserActiveRequest request = new UserActiveRequest();
         request.setBeginTime(start);
         request.setEndTime(end);
@@ -114,8 +126,8 @@ public class QytMorningCheckController {
         return null;
     }
 
-    private ServiceLoadResponse getServiceLoad(String session, String start, String end) {
-        SkywalkingMetricRequest request = buildServiceLoadRequest(start, end);
+    private ServiceLoadResponse getServiceLoad(String session, String start, String end, String step) {
+        SkywalkingMetricRequest request = buildServiceLoadRequest(start, end, step);
         String result = getResult(request, session);
         if (StringUtils.isNotBlank(result)) {
             return ObjectMappers.readAsObjThrow(result, ServiceLoadResponse.class);
@@ -123,13 +135,13 @@ public class QytMorningCheckController {
         return null;
     }
 
-    private SkywalkingMetricRequest buildServiceLoadRequest(String start, String end) {
+    private SkywalkingMetricRequest buildServiceLoadRequest(String start, String end, String step) {
         SkywalkingMetricRequest request = new SkywalkingMetricRequest();
         request.setQuery("query queryData($duration: Duration!,$condition0: MetricsCondition!) {service_cpm0: readMetricsValues(condition: $condition0, duration: $duration){\n    label\n    values {\n      values {value}\n    }\n  }}");
 
         // 组装 variables
         SkywalkingMetricRequest.Variables vars = new SkywalkingMetricRequest.Variables();
-        SkywalkingMetricRequest.Duration duration = new SkywalkingMetricRequest.Duration(start, end, "HOUR");
+        SkywalkingMetricRequest.Duration duration = new SkywalkingMetricRequest.Duration(start, end, step);
         vars.setDuration(duration);
 
         SkywalkingMetricRequest.Condition condition0 = new SkywalkingMetricRequest.Condition();
