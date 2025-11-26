@@ -22,6 +22,11 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.codeborne</groupId>
+            <artifactId>junit4</artifactId>
+            <version>7.9.4</version>
+        </dependency>
 
         <!-- ✅ 单元测试 -->
         <dependency>
@@ -157,7 +162,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

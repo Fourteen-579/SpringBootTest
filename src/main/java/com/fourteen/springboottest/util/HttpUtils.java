@@ -71,6 +71,7 @@ public class HttpUtils {
         } catch (Exception e) {
             log.error("HttpUtils -> post error, url={}, json={}, header={}, error={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), e.getMessage(), e);
         }
+        log.info("HttpUtils -> post, url={}, param={}, header={}, result={}", url, jsonParam, ObjectMappers.writeAsJsonStrThrow(headers), result);
         return result;
     }
 

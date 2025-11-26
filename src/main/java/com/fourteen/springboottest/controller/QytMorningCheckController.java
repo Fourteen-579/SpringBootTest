@@ -16,6 +16,7 @@ import com.fourteen.springboottest.util.ObjectMappers;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -45,14 +46,14 @@ public class QytMorningCheckController {
     private final static DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private final static DateTimeFormatter DATE_TIME_FORMATTER2 = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private final static String TEMPLATE = "%s企业通系统巡检结果:\n" +
-                    "1、【正常】接口耗时分布，P90：%sms；P95：%sms；p99：%sms\n" +
-                    "2、【正常】接口请求量，总数：%s；最高QPS：%s\n" +
-                    "3、【正常】接口返回结果：正常\n" +
-                    "4、【正常】应用日志报错查看：正常\n" +
-                    "5、【正常】应用服务器资源指标，cpu使用率峰值：%s%%；内存使用率峰值：%s%%；磁盘使用率：%s%%\n" +
-                    "6、【正常】定时任务&数仓数据同步任务：正常执行\n" +
-                    "7、【正常】日活账号数，企业数：%s；账号数：%s\n" +
-                    "晨检人：%s";
+            "1、【正常】接口耗时分布，P90：%sms；P95：%sms；p99：%sms\n" +
+            "2、【正常】接口请求量，总数：%s；最高QPS：%s\n" +
+            "3、【正常】接口返回结果：正常\n" +
+            "4、【正常】应用日志报错查看：正常\n" +
+            "5、【正常】应用服务器资源指标，cpu使用率峰值：%s%%；内存使用率峰值：%s%%；磁盘使用率：%s%%\n" +
+            "6、【正常】定时任务&数仓数据同步任务：正常执行\n" +
+            "7、【正常】日活账号数，企业数：%s；账号数：%s\n" +
+            "晨检人：%s";
 
     private final static List<String> NAME_LIST = Arrays.asList("陈万旺", "马俊聪", "冉港生", "库淑贞", "蒋金杭");
 
@@ -60,6 +61,41 @@ public class QytMorningCheckController {
 
     @Resource
     private HttpUtils httpUtils;
+
+    @Scheduled(cron = "0 30 8 * * ?", zone = "Asia/Shanghai")
+    public void sendDongRemind() {
+        String checker = "";
+        LocalDate today = LocalDate.now();
+        DayOfWeek dayOfWeek = today.getDayOfWeek();
+
+        switch (dayOfWeek) {
+            case MONDAY:    // 周一 -> 上周五
+                checker = NAME_LIST.get(0);
+                break;
+            case TUESDAY:   // 周二 -> 周一
+                checker = NAME_LIST.get(1);
+                break;
+            case WEDNESDAY:// 周三 -> 周二
+                checker = NAME_LIST.get(2);
+                break;
+            case THURSDAY:  // 周四 -> 周三
+                checker = NAME_LIST.get(3);
+                break;
+            case FRIDAY:    // 周五 -> 周四
+                checker = NAME_LIST.get(4);
+                break;
+            case SATURDAY:  // 周六 -> 周五
+                checker = NAME_LIST.get(0);
+                break;
+            case SUNDAY:    // 周日 -> 周五
+                checker = NAME_LIST.get(0);
+                break;
+        }
+
+        String title = "每日晨检提醒";
+        String content = "晨检时间到，请今日巡检人【@%s】到开发者工具中使用晨检助手扫码发送晨报。快速跳转：https://tools.dev.app/daliy-check";
+        dongMessageClient.sendDongMessage(title, String.format(content, checker), "7616168");
+    }
 
     @GetMapping("/morning-check")
     public String getQytMorningCheck(@RequestParam("skSession") String skSession,

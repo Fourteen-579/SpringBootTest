@@ -1,8 +1,8 @@
 package com.fourteen.springboottest.client;
 
-import cn.hutool.json.JSONUtil;
 import com.fourteen.springboottest.bo.qyt.MessageReq;
 import com.fourteen.springboottest.util.HttpUtils;
+import com.fourteen.springboottest.util.ObjectMappers;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -28,7 +28,7 @@ public class DongMessageClient {
     public final void sendDongMessage(String title, String content, String receiver) {
         MessageReq messageReq = new MessageReq(title, receiver, content, "group");
 
-        String jsonParam = JSONUtil.toJsonStr(messageReq);
+        String jsonParam = ObjectMappers.writeAsJsonStrThrow(messageReq);
 
         Dictionary<String, String> headers = new Hashtable<>();
         headers.put("token", token);
