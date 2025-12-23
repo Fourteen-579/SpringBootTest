@@ -38,7 +38,7 @@ public class AesUtil {
 
     public static void main(String[] args) throws IOException {
         //解密手机号
-        System.out.println(aesDecrypt("5z4q9+AXyaohPtg7IMZNDg==", KEY));
+        System.out.println(aesDecrypt("G1MG2oO5fkTvFmNDMVPOSQ==", KEY));
 //        System.out.println(aesEncrypt("kUYpOtaaNdQRC2Xnf9s0Ug==", KEY));
 //        System.out.println(aesEncrypt("6873097591325414", XG_KEY));
 

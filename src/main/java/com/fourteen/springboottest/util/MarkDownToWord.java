@@ -1,6 +1,5 @@
 package com.fourteen.springboottest.util;
 
-import cn.hutool.core.util.ObjectUtil;
 import com.deepoove.poi.XWPFTemplate;
 import com.deepoove.poi.data.ChartMultiSeriesRenderData;
 import com.deepoove.poi.data.Charts;
@@ -17,7 +16,6 @@ import org.docx4j.XmlUtils;
 import org.docx4j.convert.in.xhtml.FormattingOption;
 import org.docx4j.convert.in.xhtml.XHTMLImporterImpl;
 import org.docx4j.jaxb.Context;
-import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.NumberingDefinitionsPart;
@@ -25,7 +23,6 @@ import org.docx4j.wml.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.file.Files;
@@ -54,67 +51,67 @@ public class MarkDownToWord {
             "[11] 吉林证监局联合启动2025年金融教育宣传周系列活动 | 2025-09-19\n" +
             "[12] 矿山地质环境保护与土地复垦方案审查结果公示 | 2025-09-16";
 
-    public static void main(String[] args) throws IOException, Docx4JException {
-        //图表数据
-        String chartPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\tableTemplate.docx";
-        byte[] chart = createChart(chartPath);
-        if (ObjectUtil.isEmpty(chart)) {
-            log.warn("createChart-转换失败");
-            return;
-        }
-
-        //封面页
-        String coverPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\frontCover.docx";
-        byte[] cover = createCover(coverPath);
-        if (ObjectUtil.isEmpty(cover)) {
-            log.warn("createCover-转换失败");
-            return;
-        }
-
-        //正文
-        String mdPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\test.md";
-        byte[] text = createText(mdPath);
-        if (ObjectUtil.isEmpty(text)) {
-            log.warn("createText-转换失败");
-            return;
-        }
-
-        //设置上标
-        LinkedHashMap<String, Reference> testReferences = createTestReferences();
-        text = WordMerge.replaceTextWithSuperscript(text,testReferences);
-        if (ObjectUtil.isEmpty(text)) {
-            log.warn("replaceTextWithSuperscript-转换失败");
-            return;
-        }
-
-        //设置段落格式
-        text = setParagraphsStyle(text);
-
-        //合并图表和正文
-        text = WordMerge.insertChartAfterHeading2(text, chart, "股价走势");
-        if (ObjectUtil.isEmpty(text)) {
-            log.warn("insertChartAfterHeading2-转换失败");
-            return;
-        }
-
-        //合并封面 正文 参考文献
-        byte[] bytes = WordMerge.mergeWordWithCoverAndFooter(cover, text, testReferences);
-        if (ObjectUtil.isEmpty(bytes)) {
-            log.warn("mergeWordWithCoverAndFooter-转换失败");
-            return;
-        }
-
-        //整体样式处理
-        bytes = applyTextStyles(bytes);
-        bytes = WordMerge.setTableStyle(bytes);
-
-        if (ObjectUtil.isNotEmpty(bytes)) {
-            String outputPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\output.docx";
-            Files.write(Paths.get(outputPath), bytes);
-        } else {
-            log.warn("mergeWordWithCoverAndFooter-合并失败");
-        }
-    }
+//    public static void main(String[] args) throws IOException, Docx4JException {
+//        //图表数据
+//        String chartPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\tableTemplate.docx";
+//        byte[] chart = createChart(chartPath);
+//        if (ObjectUtil.isEmpty(chart)) {
+//            log.warn("createChart-转换失败");
+//            return;
+//        }
+//
+//        //封面页
+//        String coverPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\frontCover.docx";
+//        byte[] cover = createCover(coverPath);
+//        if (ObjectUtil.isEmpty(cover)) {
+//            log.warn("createCover-转换失败");
+//            return;
+//        }
+//
+//        //正文
+//        String mdPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\test.md";
+//        byte[] text = createText(mdPath);
+//        if (ObjectUtil.isEmpty(text)) {
+//            log.warn("createText-转换失败");
+//            return;
+//        }
+//
+//        //设置上标
+//        LinkedHashMap<String, Reference> testReferences = createTestReferences();
+//        text = WordMerge.replaceTextWithSuperscript(text,testReferences);
+//        if (ObjectUtil.isEmpty(text)) {
+//            log.warn("replaceTextWithSuperscript-转换失败");
+//            return;
+//        }
+//
+//        //设置段落格式
+//        text = setParagraphsStyle(text);
+//
+//        //合并图表和正文
+//        text = WordMerge.insertChartAfterHeading2(text, chart, "股价走势");
+//        if (ObjectUtil.isEmpty(text)) {
+//            log.warn("insertChartAfterHeading2-转换失败");
+//            return;
+//        }
+//
+//        //合并封面 正文 参考文献
+//        byte[] bytes = WordMerge.mergeWordWithCoverAndFooter(cover, text, testReferences);
+//        if (ObjectUtil.isEmpty(bytes)) {
+//            log.warn("mergeWordWithCoverAndFooter-转换失败");
+//            return;
+//        }
+//
+//        //整体样式处理
+//        bytes = applyTextStyles(bytes);
+//        bytes = WordMerge.setTableStyle(bytes);
+//
+//        if (ObjectUtil.isNotEmpty(bytes)) {
+//            String outputPath = "C:\\Users\\Administrator\\Desktop\\资本市场智能报告\\output.docx";
+//            Files.write(Paths.get(outputPath), bytes);
+//        } else {
+//            log.warn("mergeWordWithCoverAndFooter-合并失败");
+//        }
+//    }
 
     /**
      * 创建测试数据
@@ -125,19 +122,6 @@ public class MarkDownToWord {
         map.put("NW202509153514054281", new Reference("NW202509153514054281", 2, "工程机械行业稳步迈入新一轮增长周期", "行业", "2025-09-17", "人民网", "https://news.example.com/article2"));
         map.put("NW202509153514054632", new Reference("NW202509153514054632", 3, "国家统计局：8月份规上工业原煤产量3.9亿吨 同比下降3.2%", "数据", "2025-09-15", "国家统计局", null));
         return map;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Reference {
-        private String id;
-        private Integer index;
-        private String title;
-        private String infoType;
-        private String date;
-        private String source;
-        private String url;
     }
 
     public static byte[] createChart(String chartPath) {
@@ -248,11 +232,29 @@ public class MarkDownToWord {
         return null;
     }
 
+    public static void main(String[] args) {
+        String m =
+                "\n2. **区域电价分化显著**\n" +
+                        "| 区域       | 电价机制特征                  | 典型省份案例                  |\n" +
+                        "|------------|-----------------------------|-----------------------------|\n" +
+                        "| 高电价区   | 接近竞价上限（0.38-0.42元） | 安徽、上海                  |\n" +
+                        "| 低电价区   | 消纳压力致折价23%-39%       | 甘肃、黑龙江                |\n" +
+                        "   表格数据来源：区域电力交易报告【#AP202512041793666583#】";
+
+        markdownToWord(m);
+    }
+
     public static byte[] markdownToWord(String markdown) {
         String html = null;
         try {
             //删除第一行标题
             markdown = markdown.replaceFirst("^.*?\\r?\\n", "");
+
+            // 删除开头空白行
+//            markdown = markdown.replaceFirst("(?s)^[ \\t\\r\\n]+", "");
+
+            // 清理表格行前的缩进（1-3 个空格）
+//            markdown = markdown.replaceAll("(?m)^[ \\t]{1,3}(\\|)", "$1");
 
             //将所有表格前加一个换行符，避免表格被当成代码块处理
             markdown = markdown.replaceAll(
@@ -277,6 +279,7 @@ public class MarkDownToWord {
             // 替换 <h3>
             html = html.replaceAll("<h3(.*?)>", "<h3 class=\"Heading2\"$1>");
 
+            System.out.println(html);
             // html 转 docx
             WordprocessingMLPackage wordPackage = WordprocessingMLPackage.createPackage();
             MainDocumentPart mainDocumentPart = wordPackage.getMainDocumentPart();
@@ -508,6 +511,19 @@ public class MarkDownToWord {
                 rPr.setColor(color);
             }
         }
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Reference {
+        private String id;
+        private Integer index;
+        private String title;
+        private String infoType;
+        private String date;
+        private String source;
+        private String url;
     }
 
 }
