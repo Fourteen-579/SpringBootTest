@@ -36,6 +36,7 @@ public class WPSController {
         );
 
         log.info("result={}", result);
+        log.info("result body={}", result.body().string());
         return ObjectMappers.writeAsJsonStrThrow(result);
     }
 
@@ -46,6 +47,7 @@ public class WPSController {
         Response result = WpsClient.get(url);
 
         log.info("result={}", result);
+        log.info("result body={}", result.body().string());
         return ObjectMappers.writeAsJsonStrThrow(result);
     }
 }
