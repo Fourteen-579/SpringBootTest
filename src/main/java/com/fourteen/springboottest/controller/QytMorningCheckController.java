@@ -101,43 +101,43 @@ public class QytMorningCheckController {
     public String getQytMorningCheck(@RequestParam("skSession") String skSession,
                                      @RequestParam("zabbixSession") String auth) {
         try {
-            String checker = "库淑贞";
+            String checker;
             LocalDate today = LocalDate.now();
             DayOfWeek dayOfWeek = today.getDayOfWeek();
-            LocalDate checkDate = LocalDate.of(2025,12,31);
+            LocalDate checkDate;
 
-//            switch (dayOfWeek) {
-//                case MONDAY:    // 周一 -> 上周五
-//                    checkDate = today.minusDays(3);
-//                    checker = NAME_LIST.get(0);
-//                    break;
-//                case TUESDAY:   // 周二 -> 周一
-//                    checkDate = today.minusDays(1);
-//                    checker = NAME_LIST.get(1);
-//                    break;
-//                case WEDNESDAY:// 周三 -> 周二
-//                    checkDate = today.minusDays(1);
-//                    checker = NAME_LIST.get(2);
-//                    break;
-//                case THURSDAY:  // 周四 -> 周三
-//                    checkDate = today.minusDays(1);
-//                    checker = NAME_LIST.get(3);
-//                    break;
-//                case FRIDAY:    // 周五 -> 周四
-//                    checkDate = today.minusDays(1);
-//                    checker = NAME_LIST.get(4);
-//                    break;
-//                case SATURDAY:  // 周六 -> 周五
-//                    checkDate = today.minusDays(1);
-//                    checker = NAME_LIST.get(0);
-//                    break;
-//                case SUNDAY:    // 周日 -> 周五
-//                    checkDate = today.minusDays(2);
-//                    checker = NAME_LIST.get(0);
-//                    break;
-//                default:
-//                    return "巡检日期异常";
-//            }
+            switch (dayOfWeek) {
+                case MONDAY:    // 周一 -> 上周五
+                    checkDate = today.minusDays(3);
+                    checker = NAME_LIST.get(0);
+                    break;
+                case TUESDAY:   // 周二 -> 周一
+                    checkDate = today.minusDays(1);
+                    checker = NAME_LIST.get(1);
+                    break;
+                case WEDNESDAY:// 周三 -> 周二
+                    checkDate = today.minusDays(1);
+                    checker = NAME_LIST.get(2);
+                    break;
+                case THURSDAY:  // 周四 -> 周三
+                    checkDate = today.minusDays(1);
+                    checker = NAME_LIST.get(3);
+                    break;
+                case FRIDAY:    // 周五 -> 周四
+                    checkDate = today.minusDays(1);
+                    checker = NAME_LIST.get(4);
+                    break;
+                case SATURDAY:  // 周六 -> 周五
+                    checkDate = today.minusDays(1);
+                    checker = NAME_LIST.get(0);
+                    break;
+                case SUNDAY:    // 周日 -> 周五
+                    checkDate = today.minusDays(2);
+                    checker = NAME_LIST.get(0);
+                    break;
+                default:
+                    return "巡检日期异常";
+            }
 
             String checkDateStr = checkDate.format(DATE_TIME_FORMATTER2);
 
